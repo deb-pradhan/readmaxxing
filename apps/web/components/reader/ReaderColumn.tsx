@@ -1,30 +1,42 @@
+"use client";
+
 /**
- * ReaderColumn — Phase 2 stub.
+ * ReaderColumn — reader page wrapper around `@readmaxxing/ui`'s ReaderColumn.
  *
- * Per UI-UX.md §5 ("The Reader Surface"): a vertically-centered 66ch
- * column that holds the doc's paragraphs/sentences/words with the
- * `KaraokeHighlighter` advancing the active word from the speech marks.
- *
- * Features that Phase 2 wires into this component:
- *   - Opt-in Bionic Reading (fixation letters).
- *   - Auto-scroll keeping the current sentence in the upper third.
- *   - Focus mode (F key) dims non-current paragraphs.
- *   - One-tap theme switch (Light / Dark / Sepia / E-ink).
- *   - Reading ruler / line guide option.
- *   - Click-any-word → seek audio there and re-sync highlighting.
- *
- * Component contract intentionally returns `null` in Phase 1 so the page
- * compiles without dragging in the full reader surface.
+ * Adds the bottom padding needed to clear the fixed Player and exposes a
+ * scroll callback so the page can implement auto-scroll (Phase 2).
  */
 
+import * as React from "react";
+import { ReaderColumn as UIReaderColumn } from "@readmaxxing/ui";
+import type { SegmentTree } from "@readmaxxing/core";
+
 export interface ReaderColumnProps {
-  documentId: string;
-  /** Resume from this paragraph/sentence/word triple, or null for "from the top". */
-  resumeFrom?: { paragraphIndex: number; sentenceIndex: number; wordIndex: number } | null;
+  tree: SegmentTree;
+  currentWordIndex: number;
+  onWordClick?: (wordIndex: number) => void;
+  bionicReading?: boolean;
+  focusMode?: boolean;
 }
 
-export function ReaderColumn(_props: ReaderColumnProps): React.JSX.Element | null {
-  // TODO(phase-2): render the SegmentTree paragraphs with karaoke highlighting
-  // bound to the Player's current word.
-  return null;
+export function ReaderColumn({
+  tree,
+  currentWordIndex,
+  onWordClick,
+  bionicReading,
+  focusMode,
+}: ReaderColumnProps) {
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+
+  return (
+    <UIReaderColumn
+      tree={tree}
+      currentWordIndex={currentWordIndex}
+      onWordClick={onWordClick}
+      bionicReading={bionicReading}
+      focusMode={focusMode}
+      scrollRef={scrollRef}
+      bottomPadding="8rem"
+    />
+  );
 }

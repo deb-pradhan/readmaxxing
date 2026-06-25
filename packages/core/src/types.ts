@@ -62,6 +62,9 @@ export interface SegmentTree {
   estimatedReadTimeSeconds: number;
 }
 
+/** Re-export `SpeechMark` so consumers can `import { SpeechMark } from "@readmaxxing/core"`. */
+export type { SpeechMark, SpeechMarkType } from "@readmaxxing/tts";
+
 /** Document metadata stored alongside the segment tree. */
 export interface DocumentMeta {
   id: string;

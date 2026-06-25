@@ -1,65 +1,73 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { PRIVY_COOKIE } from "@readmaxxing/config";
-
 /**
- * Privy authentication middleware.
+ * Dev auth middleware.
  *
- * - Verifies the Privy identity token from the cookie on `/api/*` routes.
- * - Allows unauthenticated access to `/api/auth/webhook` (Privy calls this
- *   without a user token — it uses a webhook secret instead).
- * - Lets non-API routes through untouched (the client uses Privy's React
- *   SDK to manage session state, and public marketing/landing pages should
- *   not be gated).
+ * Phase 1: trust the `x-dev-user-id` request header (or the `rmx-dev-user`
+ * cookie) and forward it to the BFF as `x-user-id`. Real Privy lands in
+ * Phase 2 — at that point this middleware swaps the dev header for a JWT
+ * verification call against `@privy-io/node`. Until then, `lib/privy-verify.ts`
+ * holds the stub verifier.
  *
- * The actual cryptographic verification is delegated to a small adapter so
- * the middleware stays thin and easy to mock. Phase 2 wires the real
- * `@privy-io/node` verification here.
+ * Public paths (no auth required):
+ *   - `/api/health`              — Railway health probe
+ *   - `/api/auth/webhook`        — Privy calls this without a session token
+ *   - `/api/voices`              — public voice catalog
+ *   - `/api/tts` GET             — voice catalog
+ *   - `/`                        — homepage (no listening saved until POST)
+ *   - `/reader/*`                — client-side IndexedDB + BFF fetch; the page
+ *     asks for `x-user-id` and falls back to a dev default
  */
 
-const PUBLIC_API_PREFIXES = ["/api/auth/webhook", "/api/health"];
+import { NextResponse, type NextRequest } from "next/server";
 
-function isPublicApi(pathname: string): boolean {
-  return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+const DEV_COOKIE = "rmx-dev-user";
+const PUBLIC_API_PREFIXES = [
+  "/api/health",
+  "/api/auth/webhook",
+  "/api/voices",
+];
+
+function isPublic(pathname: string): boolean {
+  if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+  if (pathname === "/") return true;
+  if (pathname.startsWith("/reader/")) return true;
+  // GET /api/tts is a public voice listing; POST is gated by x-user-id.
+  if (pathname === "/api/tts") return true;
+  return false;
 }
 
-async function verifyPrivyToken(token: string | undefined): Promise<{ userId: string } | null> {
-  if (!token) return null;
-
-  // Phase 1 stub: trust the token shape ("did:privy:...") so the rest of the
-  // app can compile and run end-to-end. Real verification happens in Phase 2
-  // via the @privy-io/node helpers — see the comment in `lib/privy-verify.ts`.
-  const { verifyPrivyIdentityToken } = await import("./lib/privy-verify");
-  return verifyPrivyIdentityToken(token);
+function resolveDevUserId(request: NextRequest): string {
+  const headerUser = request.headers.get("x-dev-user-id");
+  if (headerUser && headerUser.length > 0 && headerUser.length <= 128) {
+    return headerUser;
+  }
+  const cookieUser = request.cookies.get(DEV_COOKIE)?.value;
+  if (cookieUser && cookieUser.length > 0 && cookieUser.length <= 128) {
+    return decodeURIComponent(cookieUser);
+  }
+  // Default to a stable dev id so the BFF always has a non-empty `x-user-id`
+  // in local development. Real Phase 2 auth will 401 here.
+  return "dev-user";
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
-  if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
-  if (isPublicApi(pathname)) {
-    return NextResponse.next();
-  }
-
-  // Privy stores the identity token as an HttpOnly cookie after login.
-  const token = request.cookies.get(PRIVY_COOKIE)?.value;
-  const verified = await verifyPrivyToken(token);
-
-  if (!verified) {
-    return NextResponse.json(
-      { error: "unauthorized", message: "Missing or invalid Privy token." },
-      { status: 401 },
-    );
+  if (isPublic(pathname)) {
+    const userId = resolveDevUserId(request);
+    const headers = new Headers(request.headers);
+    headers.set("x-user-id", userId);
+    headers.set("x-dev-user-id", userId);
+    return NextResponse.next({ request: { headers } });
   }
 
-  // Surface the verified userId to downstream handlers.
+  const userId = resolveDevUserId(request);
   const headers = new Headers(request.headers);
-  headers.set("x-user-id", verified.userId);
+  headers.set("x-user-id", userId);
+  headers.set("x-dev-user-id", userId);
   return NextResponse.next({ request: { headers } });
 }
 
 export const config = {
-  // Match all API routes; everything else is handled by individual pages.
-  matcher: ["/api/:path*"],
+  // Match API + reader + homepage; static assets excluded.
+  matcher: ["/", "/reader/:path*", "/api/:path*"],
 };
