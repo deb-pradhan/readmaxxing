@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["./apps/web/*"],
+      "@readmaxxing/ui": ["./packages/ui/src/index.ts"],
+      "@readmaxxing/ui/*": ["./packages/ui/src/*"],
+      "@readmaxxing/ui/tailwind.config": ["./packages/ui/tailwind.config.ts"],
+      "@readmaxxing/ui/globals.css": ["./packages/ui/src/globals.css"],
+      "@readmaxxing/core": ["./packages/core/src/index.ts"],
+      "@readmaxxing/core/*": ["./packages/core/src/*"],
+      "@readmaxxing/tts": ["./packages/tts/src/index.ts"],
+      "@readmaxxing/tts/*": ["./packages/tts/src/*"],
+      "@readmaxxing/db": ["./packages/db/src/index.ts"],
+      "@readmaxxing/db/*": ["./packages/db/src/*"],
+      "@readmaxxing/config": ["./packages/config/src/index.ts"],
+      "@readmaxxing/config/*": ["./packages/config/src/*"]
+    },
+    "noEmit": true,
+    "jsx": "preserve",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "incremental": true
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
+}

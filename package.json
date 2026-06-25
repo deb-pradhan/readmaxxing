@@ -1,0 +1,33 @@
+{
+  "name": "readmaxxing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ReadMaxxing — a Speechify-class voice AI reading app.",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,py}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,py}\" --ignore-path .gitignore",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter @readmaxxing/db generate",
+    "db:migrate": "pnpm --filter @readmaxxing/db migrate",
+    "db:push": "pnpm --filter @readmaxxing/db push",
+    "db:studio": "pnpm --filter @readmaxxing/db studio",
+    "perf:check": "size-limit"
+  },
+  "devDependencies": {
+    "@size-limit/preset-app": "^11.1.6",
+    "prettier": "^3.4.0",
+    "size-limit": "^11.1.6",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
+  }
+}

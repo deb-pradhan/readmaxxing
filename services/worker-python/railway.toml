@@ -1,0 +1,30 @@
+# =============================================================================
+# Worker service overrides (used when Railway is pointed at this directory
+# directly, e.g. via `railway up services/worker-python`).
+#
+# The root `railway.toml` is the entry-point when deploying from the repo
+# root; this file is the entry-point when deploying the worker in isolation.
+# =============================================================================
+
+[build]
+builder      = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+name              = "worker-python"
+startCommand      = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+healthcheckPath   = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+[deploy.variables]
+NODE_ENV            = "production"
+PORT                = "8000"
+PYTHONUNBUFFERED    = "1"
+PODCAST_VOLUME_PATH = "/data/podcasts"
+
+# Mount the Railway persistent volume for podcast audio at /data/podcasts.
+[[deploy.volumes]]
+mountPath = "/data/podcasts"
+name      = "podcast-volume"

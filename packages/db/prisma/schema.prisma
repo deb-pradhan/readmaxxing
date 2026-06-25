@@ -1,0 +1,504 @@
+// ReadMaxxing — Prisma schema
+//
+// Canonical data lives in Railway Postgres. This schema covers every table
+// referenced across the 6-phase build (per docs/UI-UX.md + the v1 plan),
+// including the habit tables added in Phase 1 so later phases don't migrate.
+//
+// Note: blob storage is hybrid (Postgres for small text/metadata, IndexedDB
+// for raw files + TTS audio, Railway volume for podcast episodes only).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Users — mirrored from Privy via the webhook in /api/auth/webhook.
+// =============================================================================
+
+model User {
+  id              String   @id // Privy user id (did:privy:...)
+  email           String?  @unique
+  displayName     String?
+  avatarUrl       String?
+  walletAddress   String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastSeenAt      DateTime?
+
+  // Tier flag — set by webhook / settings; drives router policy.
+  isPremium       Boolean  @default(false)
+
+  documents           Document[]
+  positions           PlaybackPosition[]
+  summaries           Summary[]
+  quizzes             Quiz[]
+  quizAttempts        QuizAttempt[]
+  notes               Note[]
+  podcasts            Podcast[]
+  episodes            PodcastEpisode[]
+  xpEvents            XpEvent[]
+  streaks             Streak[]
+  userBadges          UserBadge[]
+  leaderboardEntries  LeaderboardEntry[]
+  dailyGoals          DailyGoal[]
+  usageLedger         UsageLedger[]
+  consents            Consent[]
+}
+
+// =============================================================================
+// Documents — normalized text + metadata. Raw uploaded files stay client-side.
+// =============================================================================
+
+model Document {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Stable content hash (FNV-1a 64) — dedupes identical uploads.
+  segmentTreeId  String
+
+  source         String   // "pasted" | filename | URL
+  sourceType     DocumentSourceType
+  title          String
+  author         String?
+  language       String   @default("en")
+  coverUrl       String?
+  tags           String[] @default([])
+
+  /// Full normalized text + tree. JSONB because it's a tree of paragraphs/sentences/words.
+  segmentTree    Json
+
+  wordCount      Int      @default(0)
+  estimatedReadTimeSeconds Int @default(0)
+  sizeBytes      Int      @default(0)
+
+  pinned         Boolean  @default(false)
+  archivedAt     DateTime?
+
+  addedAt        DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  positions      PlaybackPosition[]
+  audioJobs      AudioJob[]
+  summaries      Summary[]
+  quizzes        Quiz[]
+  notes          Note[]
+  podcasts       Podcast[]
+
+  @@index([userId, addedAt])
+  @@index([userId, archivedAt])
+  @@index([segmentTreeId])
+}
+
+enum DocumentSourceType {
+  pdf
+  docx
+  md
+  epub
+  txt
+  url
+  paste
+}
+
+// =============================================================================
+// Playback positions — cross-device resume. UpdatedAt drives SSE polling.
+// =============================================================================
+
+model PlaybackPosition {
+  userId         String
+  documentId     String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  wordOffset     Int      @default(0)
+  speed          Float    @default(1.0)
+  lastPlayedAt   DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@id([userId, documentId])
+  @@index([documentId, updatedAt])
+  @@index([userId, updatedAt])
+}
+
+// =============================================================================
+// Audio jobs — queued TTS synthesis tasks. The BFF or worker handles them.
+// =============================================================================
+
+model AudioJob {
+  id             String   @id @default(cuid())
+  documentId     String
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  voiceId        String
+  status         AudioJobStatus @default(queued)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  /// Indexed list of speech marks for the whole doc, chunked.
+  speechMarks    Json?
+  costCents      Int      @default(0)
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([documentId, status])
+  @@index([status, createdAt])
+}
+
+enum AudioJobStatus {
+  queued
+  in_progress
+  completed
+  failed
+  cancelled
+}
+
+// =============================================================================
+// Voices — provider/voiceId/lang/gender/age/premium, isMarquee for defaults.
+// =============================================================================
+
+model Voice {
+  id             String   @id // composite: provider:voiceId
+  provider       String
+  voiceId        String
+  name           String
+  language       String
+  label          String?
+  gender         String?
+  age            String?
+  premium        Boolean  @default(false)
+  isMarquee      Boolean  @default(false)
+  previewUrl     String?
+  isCloned       Boolean  @default(false)
+  /// For cloned voices, the user that owns them.
+  ownerId        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([provider, language])
+  @@index([isMarquee])
+}
+
+// =============================================================================
+// AI — summaries, quizzes, notes.
+// =============================================================================
+
+model Summary {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId     String
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  /// Layered: { tldr, bullets[], detailed }.
+  layers         Json
+  /// Offset anchors cited.
+  citations      Json?
+  model          String
+  costCents      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([userId, documentId, createdAt])
+}
+
+model Quiz {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId     String
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  /// Questions list: [{ id, prompt, choices[], answerIndex, citations[] }].
+  questions      Json
+  createdAt      DateTime @default(now())
+
+  attempts       QuizAttempt[]
+
+  @@index([userId, documentId])
+}
+
+model QuizAttempt {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId         String
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers        Json
+  score          Int
+  total          Int
+  durationMs     Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, quizId, createdAt])
+}
+
+model Note {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId     String
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  /// Anchor: { paragraphIndex, sentenceIndex, wordIndex }.
+  anchor         Json
+  text           String   @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, documentId, updatedAt])
+}
+
+// =============================================================================
+// Podcasts — multi-speaker episodes generated by the worker. Audio stored on
+// the Railway volume (not in Postgres) and streamed via the BFF.
+// =============================================================================
+
+model Podcast {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId     String?
+  document       Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  title          String
+  description    String?  @db.Text
+  style          PodcastStyle @default(podcast)
+  episodes       PodcastEpisode[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+enum PodcastStyle {
+  podcast
+  late_night
+  debate
+  lecture
+}
+
+model PodcastEpisode {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  podcastId      String
+  podcast        Podcast  @relation(fields: [podcastId], references: [id], onDelete: Cascade)
+
+  title          String
+  script         Json     // [{ speaker, voiceId, text, timeStart }]
+  audioPath      String   // relative path on Railway volume
+  durationSeconds Float   @default(0)
+  status         PodcastEpisodeStatus @default(queued)
+  progress       Json?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  @@index([userId, createdAt])
+  @@index([podcastId])
+}
+
+enum PodcastEpisodeStatus {
+  queued
+  reading_doc
+  writing_script
+  casting_voices
+  producing_audio
+  completed
+  failed
+}
+
+// =============================================================================
+// Habit & motivation tables (Phase 5.5 — provisioned in Phase 1).
+// =============================================================================
+
+model Streak {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentDays    Int      @default(0)
+  longestDays    Int      @default(0)
+  freezesAvailable Int    @default(1)
+  freezesUsedThisWeek Int @default(0)
+  lastActiveAt   DateTime?
+  recoveredAt    DateTime?
+  /// Streak calendar (last 365 days): ISO date string → true if hit.
+  calendar       Json     @default("{}")
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId])
+}
+
+model XpEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount         Int
+  source         XpSource
+  sourceId       String?  // e.g. documentId
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+enum XpSource {
+  reading
+  listening
+  quiz
+  podcast
+  voice_typing
+  ocr
+  share
+  streak_bonus
+  daily_goal_bonus
+  milestone_bonus
+}
+
+model Badge {
+  id             String   @id
+  name           String
+  description    String
+  tier           BadgeTier
+  /// Optional XP threshold to unlock.
+  xpThreshold    Int?
+  /// Optional criteria JSON (e.g. "100h at 2x+").
+  criteria       Json?
+  /// Whether the badge is shown publicly.
+  isPublic       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  awards         UserBadge[]
+}
+
+enum BadgeTier {
+  bronze
+  silver
+  gold
+}
+
+model UserBadge {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId        String
+  badge          Badge    @relation(fields: [badgeId], references: [id])
+  awardedAt      DateTime @default(now())
+  /// Optional tier upgrade (e.g. bronze → silver).
+  tierAtAward    BadgeTier
+
+  @@unique([userId, badgeId])
+  @@index([userId, awardedAt])
+}
+
+model Quest {
+  id             String   @id
+  name           String
+  description    String
+  /// "weekly" | "daily" | "special".
+  kind           String
+  /// XP reward on completion.
+  xpReward       Int      @default(0)
+  /// Criteria JSON (e.g. "listen to 3 docs").
+  criteria       Json
+  startsAt       DateTime?
+  endsAt         DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  completions    QuestCompletion[]
+}
+
+model QuestCompletion {
+  id             String   @id @default(cuid())
+  userId         String
+  questId        String
+  quest          Quest    @relation(fields: [questId], references: [id])
+  completedAt    DateTime @default(now())
+
+  @@unique([userId, questId])
+}
+
+model LeaderboardLeague {
+  id             String   @id
+  name           String
+  tier           Int      // 0 = Bronze, 1 = Silver, ... 4 = Diamond
+  /// Weekly reset cadence.
+  startsAt       DateTime
+  endsAt         DateTime
+  isPrivate      Boolean  @default(false)
+
+  entries        LeaderboardEntry[]
+}
+
+model LeaderboardEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leagueId       String
+  league         LeaderboardLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  /// Total XP earned within this league window.
+  xp             Int      @default(0)
+  rank           Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, leagueId])
+  @@index([leagueId, xp])
+}
+
+model DailyGoal {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "minutes" | "words" | "articles".
+  metric         String
+  target         Int
+  /// For the current calendar day (user-local).
+  dateKey        String   // YYYY-MM-DD
+  progress       Int      @default(0)
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, dateKey])
+  @@index([userId, dateKey])
+}
+
+// =============================================================================
+// Usage ledger — metering (provisioned now for billing in later phases).
+// =============================================================================
+
+model UsageLedger {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "tts_chars" | "llm_tokens_in" | "llm_tokens_out" | "ocr_pages" | "voice_clone_minutes"
+  metric         String
+  amount         Int
+  costCents      Int      @default(0)
+  /// Provider that was billed.
+  provider       String?
+  /// Document / job this row was attributed to.
+  sourceId       String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, metric, createdAt])
+}
+
+// =============================================================================
+// Consents — explicit, auditable consents (esp. for voice cloning).
+// =============================================================================
+
+model Consent {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "voice_clone" | "leaderboards" | "share_progress" | "analytics"
+  kind           String
+  version        String
+  /// Whether the user is currently opted in.
+  granted        Boolean
+  grantedAt      DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, kind])
+}

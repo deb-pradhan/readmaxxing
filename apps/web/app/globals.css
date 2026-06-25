@@ -1,0 +1,10 @@
+/**
+ * Tailwind v4 entry. The full token system + global CSS lives in
+ * `@readmaxxing/ui/src/globals.css`; the web app re-imports it so the
+ * tokens ship together with the Tailwind theme.
+ *
+ * v4 auto-scans every non-gitignored source file in the monorepo for
+ * utility classes, so primitives living in `packages/ui/src/primitives/*`
+ * are picked up automatically without an explicit `@source` directive.
+ */
+@import "@readmaxxing/ui/globals.css";

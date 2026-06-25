@@ -1,0 +1,503 @@
+/**
+ * @readmaxxing/ai — LLM client + prompt helpers, routed through OpenRouter.
+ *
+ * OpenRouter (https://openrouter.ai/) gives us a single API key to reach any
+ * provider — OpenAI, Anthropic, Google, Meta, Mistral, etc. — with automatic
+ * fallback. We talk to it via plain `fetch` so the package has no SDK
+ * dependency, which keeps the bundle small and the worker deployment simple.
+ *
+ * Endpoint reference: https://openrouter.ai/docs/api-reference/overview
+ *
+ * Usage:
+ *
+ *   import { complete, stream, AiModel } from "@readmaxxing/ai";
+ *
+ *   const res = await complete({
+ *     prompt: "Summarize the following …",
+ *     model: "openai/gpt-4o-mini",
+ *   });
+ *
+ *   for await (const delta of stream({ prompt: "…", model: "anthropic/claude-3-5-sonnet" })) {
+ *     process.stdout.write(delta);
+ *   }
+ *
+ * Per docs/UI-UX.md §7, AI features must always cite source segments and never
+ * silently rewrite meaning — prompt helpers in this package enforce that.
+ */
+
+export type AiModel = string;
+
+export type AiRole = "system" | "user" | "assistant";
+
+export interface AiMessage {
+  role: AiRole;
+  content: string;
+}
+
+export interface AiCompletionRequest {
+  /** Optional system prompt. */
+  system?: string;
+  /** Single-turn prompt (alternative to `messages`). */
+  prompt?: string;
+  /** Multi-turn conversation (takes precedence over `prompt`/`system`). */
+  messages?: AiMessage[];
+  /** OpenRouter model id, e.g. "openai/gpt-4o-mini", "anthropic/claude-3-5-sonnet". */
+  model?: AiModel;
+  /** 0 – 2; lower = more deterministic. */
+  temperature?: number;
+  /** Cap on output tokens. */
+  maxTokens?: number;
+  /** When true, returns a streaming async iterable of text deltas. */
+  stream?: boolean;
+  /**
+   * When provided, the response is requested as JSON conforming to this schema
+   * (passed through to OpenRouter's `response_format.json_schema`). Set
+   * `strict: true` for guaranteed-conformance responses.
+   */
+  jsonSchema?: {
+    name: string;
+    schema: Record<string, unknown>;
+    strict?: boolean;
+  };
+  /** Optional app-specific tags forwarded as OpenRouter request headers. */
+  appMetadata?: {
+    /** Logical feature tag (e.g. "summary", "quiz", "podcast"). */
+    feature?: string;
+    /** User id, for cost attribution / abuse prevention. */
+    userId?: string;
+  };
+  /** Optional AbortSignal to cancel in-flight requests. */
+  signal?: AbortSignal;
+}
+
+export interface AiUsage {
+  inputTokens: number;
+  outputTokens: number;
+  /** USD cost reported by OpenRouter (0 if not returned). */
+  costUsd: number;
+  /** OpenRouter's normalized provider name (e.g. "OpenAI", "Anthropic"). */
+  provider?: string;
+}
+
+export interface AiCompletionResponse {
+  text: string;
+  model: string;
+  usage: AiUsage;
+  /** Optional parsed JSON if `jsonSchema` was provided. */
+  parsed?: unknown;
+}
+
+const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
+const DEFAULT_MODEL: AiModel = "openai/gpt-4o-mini";
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+interface OpenRouterResponseShape {
+  id?: string;
+  model?: string;
+  choices?: Array<{
+    message?: { role?: string; content?: string };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    cost?: number;
+  };
+  /** Provider surfaced by OpenRouter's `provider` field when `route` is on. */
+  provider?: string;
+}
+
+interface OpenRouterStreamChunk {
+  id?: string;
+  model?: string;
+  choices?: Array<{
+    delta?: { content?: string };
+    finish_reason?: string | null;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    cost?: number;
+  };
+  provider?: string;
+}
+
+function getApiKey(): string {
+  const key =
+    typeof process !== "undefined" && process.env
+      ? process.env.OPENROUTER_API_KEY ?? ""
+      : "";
+  if (!key) {
+    throw new Error(
+      "@readmaxxing/ai: OPENROUTER_API_KEY is not set. Add it to .env (see README).",
+    );
+  }
+  return key;
+}
+
+function buildMessages(req: AiCompletionRequest): AiMessage[] {
+  if (req.messages && req.messages.length > 0) return req.messages;
+  const out: AiMessage[] = [];
+  if (req.system) out.push({ role: "system", content: req.system });
+  if (req.prompt) out.push({ role: "user", content: req.prompt });
+  if (out.length === 0) {
+    throw new Error("@readmaxxing/ai: provide either `messages`, `prompt`, or `system`+`prompt`.");
+  }
+  return out;
+}
+
+function buildHeaders(apiKey: string, req: AiCompletionRequest): Headers {
+  const headers = new Headers({
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  });
+  // OpenRouter optional headers — safe to include; many are stripped by CORS.
+  if (typeof process !== "undefined" && process.env) {
+    const referer =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      process.env.OPENROUTER_REFERER ??
+      "https://readmaxxing.app";
+    const title = process.env.OPENROUTER_APP_TITLE ?? "ReadMaxxing";
+    headers.set("HTTP-Referer", referer);
+    headers.set("X-Title", title);
+  } else {
+    headers.set("HTTP-Referer", "https://readmaxxing.app");
+    headers.set("X-Title", "ReadMaxxing");
+  }
+  // Forward a feature tag as a custom header so we can debug in the OpenRouter dashboard.
+  if (req.appMetadata?.feature) {
+    headers.set("X-Readmaxxing-Feature", req.appMetadata.feature);
+  }
+  return headers;
+}
+
+function buildBody(req: AiCompletionRequest): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    model: req.model ?? DEFAULT_MODEL,
+    messages: buildMessages(req).map((m) => ({ role: m.role, content: m.content })),
+    stream: Boolean(req.stream),
+  };
+  if (req.temperature !== undefined) body.temperature = req.temperature;
+  if (req.maxTokens !== undefined) body.max_tokens = req.maxTokens;
+  if (req.jsonSchema) {
+    body.response_format = {
+      type: "json_schema",
+      json_schema: {
+        name: req.jsonSchema.name,
+        schema: req.jsonSchema.schema,
+        strict: req.jsonSchema.strict ?? true,
+      },
+    };
+  }
+  return body;
+}
+
+function extractUsage(payload: OpenRouterResponseShape): AiUsage {
+  const u = payload.usage ?? {};
+  return {
+    inputTokens: u.prompt_tokens ?? 0,
+    outputTokens: u.completion_tokens ?? 0,
+    costUsd: typeof u.cost === "number" ? u.cost : 0,
+    provider: payload.provider,
+  };
+}
+
+async function requestOpenRouter(
+  req: AiCompletionRequest,
+  apiKey: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const signal = req.signal ?? controller.signal;
+
+  try {
+    return await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+      method: "POST",
+      headers: buildHeaders(apiKey, req),
+      body: JSON.stringify(body),
+      signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function readError(res: Response): Promise<string> {
+  try {
+    const data = (await res.json()) as { error?: { message?: string; code?: number } };
+    if (data.error?.message) return data.error.message;
+    return JSON.stringify(data);
+  } catch {
+    return `OpenRouter responded ${res.status} ${res.statusText}`;
+  }
+}
+
+/**
+ * Non-streaming completion. Returns the final assistant text + usage info.
+ * Use for summaries, quizzes, podcast scripts, and any AI call where you need
+ * the entire response before continuing.
+ */
+export async function complete(req: AiCompletionRequest): Promise<AiCompletionResponse> {
+  const apiKey = getApiKey();
+  const body = buildBody({ ...req, stream: false });
+
+  const res = await requestOpenRouter(req, apiKey, body);
+  if (!res.ok || !res.body) {
+    throw new Error(`@readmaxxing/ai: ${await readError(res)}`);
+  }
+
+  const payload = (await res.json()) as OpenRouterResponseShape;
+  const choice = payload.choices?.[0];
+  const text = choice?.message?.content ?? "";
+  const out: AiCompletionResponse = {
+    text,
+    model: payload.model ?? req.model ?? DEFAULT_MODEL,
+    usage: extractUsage(payload),
+  };
+  if (req.jsonSchema) {
+    try {
+      out.parsed = text.length > 0 ? JSON.parse(text) : null;
+    } catch {
+      // Some providers return JSON wrapped in fences; strip before parse.
+      const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      out.parsed = cleaned.length > 0 ? JSON.parse(cleaned) : null;
+    }
+  }
+  return out;
+}
+
+/**
+ * Streaming completion. Yields decoded text deltas as they arrive from
+ * OpenRouter's SSE stream. Token usage is reported on the final chunk that
+ * carries the `usage` field — caller can either ignore it (most apps) or
+ * accumulate it themselves.
+ *
+ * Usage:
+ *
+ *   for await (const delta of stream({ prompt, model })) {
+ *     process.stdout.write(delta);
+ *   }
+ */
+export async function* stream(req: AiCompletionRequest): AsyncIterable<string> {
+  const apiKey = getApiKey();
+  const body = buildBody({ ...req, stream: true });
+
+  const res = await requestOpenRouter(req, apiKey, body);
+  if (!res.ok || !res.body) {
+    throw new Error(`@readmaxxing/ai: ${await readError(res)}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE: events separated by \n\n, lines starting with "data: ".
+      let sepIndex = buffer.indexOf("\n\n");
+      while (sepIndex !== -1) {
+        const rawEvent = buffer.slice(0, sepIndex);
+        buffer = buffer.slice(sepIndex + 2);
+        const dataLines: string[] = [];
+        for (const line of rawEvent.split("\n")) {
+          if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+        }
+        const data = dataLines.join("\n").trim();
+        if (!data || data === "[DONE]") {
+          sepIndex = buffer.indexOf("\n\n");
+          continue;
+        }
+        try {
+          const chunk = JSON.parse(data) as OpenRouterStreamChunk;
+          const delta = chunk.choices?.[0]?.delta?.content;
+          if (delta) yield delta;
+        } catch {
+          // Tolerate malformed chunks from upstream; keep streaming.
+        }
+        sepIndex = buffer.indexOf("\n\n");
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * Convenience helper for JSON-schema structured outputs without streaming.
+ * Returns the parsed object + usage info.
+ */
+export async function completeJson<T = unknown>(req: AiCompletionRequest): Promise<{
+  parsed: T;
+  text: string;
+  usage: AiUsage;
+}> {
+  if (!req.jsonSchema) {
+    throw new Error("@readmaxxing/ai: completeJson requires `jsonSchema`.");
+  }
+  const out = await complete(req);
+  if (out.parsed === undefined || out.parsed === null) {
+    throw new Error("@readmaxxing/ai: response did not contain parseable JSON.");
+  }
+  return { parsed: out.parsed as T, text: out.text, usage: out.usage };
+}
+
+// =============================================================================
+// Prompt helpers — these enforce the source-citation + honesty rules from
+// docs/UI-UX.md §7 (AI features are servants, not stars; always cite the
+// source segment; never silently rewrite meaning).
+// =============================================================================
+
+const CITE_RULE = `
+Every factual claim must cite the source segment using a citation tag of the
+form [cite:paragraphIndex:sentenceIndex] (zero-indexed). If a claim is not
+supported by the source, omit it. Never invent citations.
+`.trim();
+
+/** Build a layered summary prompt (TL;DR → bullets → detailed). */
+export function buildSummaryPrompt(args: {
+  documentText: string;
+  style?: "default" | "academic" | "casual";
+}): { system: string; prompt: string } {
+  const style = args.style ?? "default";
+  return {
+    system:
+      `You are ReadMaxxing's summarizer. Produce a layered summary:\n` +
+      `1) TL;DR — one sentence, ≤ 25 words.\n` +
+      `2) Key points — 3 to 6 bullets, each ≤ 25 words.\n` +
+      `3) Detailed — a short paragraph (≤ 120 words) for users who want more.\n` +
+      `Style: ${style}.\n${CITE_RULE}`,
+    prompt: `SOURCE DOCUMENT:\n---\n${args.documentText}\n---\n\nReturn the summary.`,
+  };
+}
+
+/** Build a retrieval-practice quiz prompt (UI-UX.md §7). */
+export function buildQuizPrompt(args: {
+  documentText: string;
+  questionCount?: number;
+}): { system: string; prompt: string; jsonSchema: Record<string, unknown> } {
+  const n = args.questionCount ?? 5;
+  return {
+    system:
+      `You write retrieval-practice quizzes. Generate ${n} multiple-choice ` +
+      `questions that test recall of important facts from the document. Each ` +
+      `question must have exactly 4 choices and one correct answer. Frame the ` +
+      `questions as "test yourself" — never trick questions. Cite the source ` +
+      `segment for each answer.\n${CITE_RULE}`,
+    prompt: `SOURCE DOCUMENT:\n---\n${args.documentText}\n---\n\nReturn the quiz.`,
+    jsonSchema: {
+      name: "quiz",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          questions: {
+            type: "array",
+            minItems: n,
+            maxItems: n,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                prompt: { type: "string" },
+                choices: {
+                  type: "array",
+                  minItems: 4,
+                  maxItems: 4,
+                  items: { type: "string" },
+                },
+                answerIndex: { type: "integer", minimum: 0, maximum: 3 },
+                citation: { type: "string" },
+              },
+              required: ["prompt", "choices", "answerIndex", "citation"],
+            },
+          },
+        },
+        required: ["questions"],
+      },
+    },
+  };
+}
+
+/** Build a "pick up where you left off" recap prompt (Zeigarnik effect). */
+export function buildRecapPrompt(args: {
+  documentText: string;
+  lastParagraphIndex: number;
+  lastSentenceIndex: number;
+}): { system: string; prompt: string } {
+  return {
+    system:
+      `You write short, specific recaps so a returning reader knows exactly ` +
+      `where they left off and what comes next. Recap must be ≤ 2 sentences, ` +
+      `≤ 50 words total. Never invent details not in the source.\n${CITE_RULE}`,
+    prompt:
+      `The reader stopped at paragraph ${args.lastParagraphIndex}, ` +
+      `sentence ${args.lastSentenceIndex}.\n\n` +
+      `SOURCE DOCUMENT (truncated to the next ~500 chars after that anchor):\n` +
+      `---\n${args.documentText}\n---\n\nWrite the recap.`,
+  };
+}
+
+/** Build a "ask the document" prompt (grounded Q&A). */
+export function buildAskPrompt(args: {
+  documentText: string;
+  question: string;
+}): { system: string; prompt: string } {
+  return {
+    system:
+      `You answer questions about a single document. You may only use facts ` +
+      `present in the source. If the source does not contain the answer, say ` +
+      `"The document does not address that." Never invent.\n${CITE_RULE}`,
+    prompt:
+      `QUESTION: ${args.question}\n\n` +
+      `SOURCE DOCUMENT:\n---\n${args.documentText}\n---\n\nAnswer the question.`,
+  };
+}
+
+/** Build a filler-detection prompt (UI-UX.md §7 — "Skip filler content"). */
+export function buildFillerPrompt(args: {
+  documentText: string;
+}): { system: string; prompt: string; jsonSchema: Record<string, unknown> } {
+  return {
+    system:
+      `You identify low-information "filler" sentences (transitions, ` +
+      `re-statements, throat-clearing) that a reader/listener could safely ` +
+      `skip without losing meaning. Output is a list of paragraphIndex/` +
+      `sentenceIndex pairs that are skippable.`,
+    prompt:
+      `SOURCE DOCUMENT:\n---\n${args.documentText}\n---\n\n` +
+      `Return the list of skippable sentence anchors.`,
+    jsonSchema: {
+      name: "fillers",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          fillers: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                paragraphIndex: { type: "integer", minimum: 0 },
+                sentenceIndex: { type: "integer", minimum: 0 },
+                reason: { type: "string" },
+              },
+              required: ["paragraphIndex", "sentenceIndex", "reason"],
+            },
+          },
+        },
+        required: ["fillers"],
+      },
+    },
+  };
+}

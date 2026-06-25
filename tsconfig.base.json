@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "useDefineForClassFields": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@readmaxxing/ui": ["./packages/ui/src/index.ts"],
+      "@readmaxxing/ui/*": ["./packages/ui/src/*"],
+      "@readmaxxing/core": ["./packages/core/src/index.ts"],
+      "@readmaxxing/core/*": ["./packages/core/src/*"],
+      "@readmaxxing/tts": ["./packages/tts/src/index.ts"],
+      "@readmaxxing/tts/*": ["./packages/tts/src/*"],
+      "@readmaxxing/db": ["./packages/db/src/index.ts"],
+      "@readmaxxing/db/*": ["./packages/db/src/*"],
+      "@readmaxxing/config": ["./packages/config/src/index.ts"],
+      "@readmaxxing/config/*": ["./packages/config/src/*"],
+      "@readmaxxing/ai": ["./packages/ai/src/index.ts"],
+      "@readmaxxing/ai/*": ["./packages/ai/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next", "build"]
+}
