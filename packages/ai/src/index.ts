@@ -409,6 +409,37 @@ export function validateCitations(text: string): CitationValidation {
   };
 }
 
+/**
+ * Result shape returned to clients when the server has already computed
+ * everything the chat UI needs to render an answer: a citations array and
+ * the prose string with `[cite:p:s]` placeholders still in place (so the
+ * client can tokenize them into CitationPills, audit C4).
+ */
+export interface RenderedCitations {
+  /** Stable list of citation anchors in source order. */
+  citations: Array<{ paragraphIndex: number; sentenceIndex: number }>;
+  /**
+   * Plain text with `[cite:p:s]` placeholders preserved verbatim. The chat
+   * client is expected to tokenize this string against the same `CITE_RE`
+   * and emit `<CitationPill>` instances for each match.
+   */
+  prose: string;
+}
+
+/**
+ * Validate citations AND return the prose string the chat UI will render.
+ * This is the canonical Phase C helper — the route calls it once on the
+ * accumulated stream and the response body includes both `citations` and
+ * `prose` so the client never has to look at raw model output (audit C4).
+ */
+export function renderCitations(text: string): RenderedCitations {
+  const validation = validateCitations(text);
+  return {
+    citations: validation.anchors,
+    prose: text ?? "",
+  };
+}
+
 /** Build a layered summary prompt (TL;DR → bullets → detailed). */
 export function buildSummaryPrompt(args: {
   documentText: string;
