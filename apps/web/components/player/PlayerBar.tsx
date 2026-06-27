@@ -123,9 +123,9 @@ export function PlayerBar({
         aria-controls="player-bar-menu"
         className="block w-full px-4 pt-2 text-left text-xs text-ink-muted focus-visible:outline-none focus-visible:shadow-focus"
       >
-        <span className="tabular text-ink">{displayTimeFmt(displayTime)}</span>
+        <span className="font-mono tabular-nums text-ink">{displayTimeFmt(displayTime)}</span>
         <span className="px-2 text-ink-faint">/</span>
-        <span className="tabular">{displayTimeFmt(safeDuration)}</span>
+        <span className="font-mono tabular-nums">{displayTimeFmt(safeDuration)}</span>
         <span className="px-2 text-ink-faint">·</span>
         <span className="text-sm text-ink">{title}</span>
         <span className="ml-2">{expanded ? "▾" : "▴"}</span>
@@ -202,7 +202,7 @@ export function PlayerBar({
 
         <span
           aria-hidden
-          className="tabular hidden text-sm text-ink-muted md:inline"
+          className="font-mono tabular-nums hidden text-sm text-ink-muted md:inline"
         >
           {displayTimeFmt(displayTime)} / {displayTimeFmt(safeDuration)}
         </span>
@@ -316,7 +316,7 @@ function Scrubber({
         aria-valuetext={`${displayTimeFmt(time)} / ${displayTimeFmt(duration)}`}
         className="h-1 w-full cursor-pointer appearance-none rounded-full bg-border-subtle accent-coral-bg focus-visible:outline-none focus-visible:shadow-focus"
       />
-      <span aria-hidden className="tabular w-9 text-right text-xs text-ink-muted">
+      <span aria-hidden className="font-mono tabular-nums w-9 text-right text-xs text-ink-muted">
         {Math.round(percent)}%
       </span>
     </div>
