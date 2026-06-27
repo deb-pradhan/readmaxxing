@@ -116,6 +116,35 @@ vi.mock("@/components/onboarding/Coachmarks", () => ({
   Coachmarks: () => <div data-testid="mock-coachmarks" />,
 }));
 
+// Mock MediaMetadata (jsdom doesn't define it). The MediaSession wrapper
+// checks `globalThis.MediaMetadata` before constructing metadata.
+class MockMediaMetadata {
+  title: string;
+  artist: string;
+  album: string;
+  artwork: Array<{ src: string }>;
+  constructor(init: { title?: string; artist?: string; album?: string; artwork?: Array<{ src: string }> }) {
+    this.title = init.title ?? "";
+    this.artist = init.artist ?? "";
+    this.album = init.album ?? "";
+    this.artwork = init.artwork ?? [];
+  }
+}
+(globalThis as unknown as { MediaMetadata: typeof MockMediaMetadata }).MediaMetadata =
+  MockMediaMetadata;
+
+// Add a stub navigator.mediaSession if absent — jsdom doesn't expose it.
+if (typeof navigator !== "undefined" && !("mediaSession" in navigator)) {
+  Object.defineProperty(navigator, "mediaSession", {
+    configurable: true,
+    value: {
+      metadata: null as MockMediaMetadata | null,
+      playbackState: "none" as MediaSessionPlaybackState,
+      setActionHandler: () => {},
+    },
+  });
+}
+
 // ---- helpers ------------------------------------------------------------------
 
 function makePrefsResponse(defaultSpeed: number | null): Response {
@@ -313,5 +342,50 @@ describe("ReaderPage (Phase C + Phase D P1)", () => {
       },
       { timeout: 5000 },
     );
+  });
+
+  // Phase D P1 (D.1): MediaSession metadata is set on loadedmetadata.
+  it("publishes MediaSession metadata after the audio loadedmetadata event", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/user/preferences")) {
+        return makePrefsResponse(null);
+      }
+      if (url.includes("/api/documents/")) {
+        return makeDocResponse();
+      }
+      if (url.includes("/api/positions")) {
+        return makePositionsResponse();
+      }
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const ReaderPage = (await import("./page")).default;
+    render(<ReaderPage />);
+
+    // Wait for the audio element to mount.
+    await waitFor(
+      () => {
+        const el = document.querySelector("audio");
+        if (!el) throw new Error("audio not mounted yet");
+        return el;
+      },
+      { timeout: 5000 },
+    );
+    // Trigger loadedmetadata — this is when the MediaSession wrapper is
+    // guaranteed to have observed the audio URL (via state).
+    const audioEl = document.querySelector("audio") as HTMLAudioElement;
+    await act(async () => {
+      audioEl.dispatchEvent(new Event("loadedmetadata"));
+    });
+    // Give React a tick to flush the metadata effect.
+    await waitFor(() => {
+      const meta = navigator.mediaSession.metadata;
+      if (!meta) throw new Error("mediaSession.metadata not set");
+      expect(meta.title).toBe("Test doc");
+    });
+    // Title comes from the doc, artist from the wrapper.
+    expect(navigator.mediaSession.metadata?.artist).toBe("ReadMaxxing");
   });
 });

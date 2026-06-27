@@ -17,6 +17,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { SegmentTree, SpeechMark } from "@readmaxxing/core";
+import { MediaSessionWrapper } from "@readmaxxing/core";
 import { Button } from "@readmaxxing/ui";
 import { DEFAULT_ELEVENLABS_VOICE_ID } from "@readmaxxing/tts";
 import { PlayerBar } from "@/components/player/PlayerBar";
@@ -129,6 +130,13 @@ export default function ReaderPage(): React.JSX.Element {
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [marks, setMarks] = React.useState<SpeechMark[]>([]);
   const [audioRef, setAudioRef] = React.useState<HTMLAudioElement | null>(null);
+  // Phase D P1 (D.1): MediaSession wire. The wrapper is feature-checked
+  // (it's a no-op when `navigator.mediaSession` is absent), so we always
+  // instantiate it. We use a ref so the same instance lives across renders.
+  const mediaSessionRef = React.useRef<MediaSessionWrapper | null>(null);
+  if (mediaSessionRef.current === null) {
+    mediaSessionRef.current = new MediaSessionWrapper();
+  }
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [selectionRect, setSelectionRect] = React.useState<DOMRect | null>(null);
   const [selectionText, setSelectionText] = React.useState<string>("");
@@ -349,6 +357,55 @@ export default function ReaderPage(): React.JSX.Element {
       audio.pause();
     }
   }, [playing, audioUrl, audioRef, pausePlayback]);
+
+  // Phase D P1 (D.1): Media Session wire. Push the track metadata to the
+  // OS chrome as soon as we know the title + audio URL, then register
+  // action handlers so the OS media keys (lock screen, headphones, etc.)
+  // control playback. The wrapper is a no-op when `mediaSession` is
+  // unavailable (Firefox desktop, jsdom, etc.).
+  React.useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const ms = mediaSessionRef.current;
+    if (!ms) return;
+    ms.setMetadata({
+      title,
+      artist: "ReadMaxxing",
+      album: "Voice library",
+    });
+    ms.setActionHandlers({
+      play: () => togglePlay(),
+      pause: () => pausePlayback(),
+      seekbackward: () => {
+        const audio = audioRef;
+        if (!audio) return;
+        audio.currentTime = Math.max(0, audio.currentTime - 15);
+      },
+      seekforward: () => {
+        const audio = audioRef;
+        if (!audio || !Number.isFinite(audio.duration)) return;
+        audio.currentTime = Math.min(
+          audio.duration,
+          audio.currentTime + 15,
+        );
+      },
+      seekto: (details) => {
+        const audio = audioRef;
+        if (!audio || !Number.isFinite(details.seekTime ?? NaN)) return;
+        audio.currentTime = Math.max(
+          0,
+          Math.min(details.seekTime as number, audio.duration || Infinity),
+        );
+      },
+    });
+  }, [title, audioRef, togglePlay, pausePlayback]);
+
+  // Phase D P1 (D.1): keep MediaSession playbackState in sync with the
+  // actual <audio> element. Mirrors the existing status state so the
+  // OS lock screen shows play/pause correctly.
+  React.useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    mediaSessionRef.current?.setPlaybackState(playing ? "playing" : "paused");
+  }, [playing]);
 
   // Audit C2 (Phase C P0): when the user changes `speed` from the player
   // chrome, we must re-apply it to the live <audio> element. Previously the
@@ -770,8 +827,14 @@ export default function ReaderPage(): React.JSX.Element {
           audio.playbackRate = speed;
           setDuration(audio.duration);
         }}
-        onPlay={() => setStatus("playing")}
-        onPause={() => setStatus("paused")}
+        onPlay={() => {
+          setStatus("playing");
+          mediaSessionRef.current?.setPlaybackState("playing");
+        }}
+        onPause={() => {
+          setStatus("paused");
+          mediaSessionRef.current?.setPlaybackState("paused");
+        }}
         onEnded={() => {
           pausePlayback();
           setStatus("ended");
