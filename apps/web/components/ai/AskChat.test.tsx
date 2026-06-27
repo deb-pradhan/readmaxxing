@@ -187,29 +187,34 @@ describe("tokenizeProse (audit C4 unit test)", () => {
     const nodes = tokenizeProse("Just plain text.");
     expect(nodes).toHaveLength(1);
     // Each tokenized node is either a React.Fragment (for plain text) or
-    // a <CitationPill>. We can't easily compare React fragments, but we
-    // can assert the joined text is preserved verbatim.
-    const allText = (nodes as React.ReactElement[]).map((n) => String(n.props.children)).join("");
-    expect(allText).toBe("Just plain text.");
+    // a <CitationPill>. We verify via React's element shape: the single
+    // node is a Fragment whose children is the verbatim string.
+    const fragment = nodes[0] as React.ReactElement<{ children: string }>;
+    expect(fragment.type).toBe(React.Fragment);
+    expect(fragment.props.children).toBe("Just plain text.");
   });
 
   it("emits a CitationPill for each [cite:p:s] placeholder", () => {
-    const nodes = tokenizeProse(
-      "Before [cite:0:0] middle [cite:1:2] after.",
+    const nodes = tokenizeProse("Before [cite:0:0] middle [cite:1:2] after.");
+    // Tokens alternate: text, pill, text, pill, text → 5 nodes total.
+    expect(nodes).toHaveLength(5);
+    const pills = nodes.filter(
+      (n): n is React.ReactElement<{ paragraphIndex: number; sentenceIndex?: number }> =>
+        React.isValidElement(n) &&
+        typeof n.type === "object" &&
+        (n.type as { displayName?: string }).displayName === "CitationPill",
     );
-    expect(nodes.length).toBeGreaterThan(0);
-    // The CitationPill is a button — verify exactly 2 buttons render.
-    const buttons = (nodes as React.ReactElement[]).filter(
-      (n) => typeof n.type !== "string" && (n.type as { displayName?: string })?.displayName === "CitationPill",
-    );
-    expect(buttons.length).toBe(2);
+    expect(pills.length).toBe(2);
   });
 
   it("respects paragraph/sentence indices from the placeholder", () => {
     const nodes = tokenizeProse("a [cite:7:3] b");
-    const pill = (nodes as React.ReactElement[]).find(
-      (n) => typeof n.type !== "string" && (n.type as { displayName?: string })?.displayName === "CitationPill",
-    ) as React.ReactElement<{ paragraphIndex: number; sentenceIndex?: number }> | undefined;
+    const pill = nodes.find(
+      (n): n is React.ReactElement<{ paragraphIndex: number; sentenceIndex?: number }> =>
+        React.isValidElement(n) &&
+        typeof n.type === "object" &&
+        (n.type as { displayName?: string }).displayName === "CitationPill",
+    );
     expect(pill).toBeDefined();
     expect(pill!.props.paragraphIndex).toBe(7);
     expect(pill!.props.sentenceIndex).toBe(3);
