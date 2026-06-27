@@ -162,7 +162,7 @@ export default function EpisodePage(): React.JSX.Element {
         <AppHeader section="Podcast">
           <ThemeSwitcher />
         </AppHeader>
-        <main className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-20 text-center sm:px-6">
+        <main id="main" className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-20 text-center sm:px-6">
           <p className="text-sm text-danger">{loadError}</p>
           <Link
             href="/podcasts"
@@ -181,7 +181,7 @@ export default function EpisodePage(): React.JSX.Element {
         <AppHeader section="Podcast">
           <ThemeSwitcher />
         </AppHeader>
-        <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
           <div className="h-9 w-2/3 animate-pulse rounded-md bg-card-muted" />
           <div className="mt-3 h-4 w-32 animate-pulse rounded bg-card-muted" />
           <div className="mt-8 space-y-3 rounded-lg border border-border-subtle bg-card p-5 sm:p-6">
@@ -200,7 +200,7 @@ export default function EpisodePage(): React.JSX.Element {
         <AppHeader section="Podcast">
           <ThemeSwitcher />
         </AppHeader>
-        <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
           <p className="text-xs font-medium uppercase tracking-widest text-ink-muted">
             {episode.podcast?.style?.replace("_", " ") ?? "podcast"}
           </p>
@@ -237,7 +237,7 @@ export default function EpisodePage(): React.JSX.Element {
         <ThemeSwitcher />
       </AppHeader>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-40 pt-8 sm:px-6 sm:pt-10">
+      <main id="main" className="mx-auto w-full max-w-3xl px-4 pb-40 pt-8 sm:px-6 sm:pt-10">
         <Link
           href="/podcasts"
           className="inline-flex items-center text-sm font-medium text-ink-muted transition-colors hover:text-ink"

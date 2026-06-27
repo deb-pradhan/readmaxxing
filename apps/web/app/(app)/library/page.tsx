@@ -133,7 +133,7 @@ export default function LibraryPage(): React.JSX.Element {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-24 sm:px-6">
+    <main id="main" className="mx-auto w-full max-w-6xl px-4 pb-24 sm:px-6">
       {/* Top bar */}
       <header className="sticky top-0 z-sticky -mx-4 flex items-center justify-between gap-3 border-b border-border-subtle bg-canvas/80 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6">
         <Link href="/library" className="text-base font-bold tracking-tight text-ink">
@@ -280,7 +280,7 @@ export default function LibraryPage(): React.JSX.Element {
         actions={paletteActions}
       />
       <KeyboardShortcuts open={helpOpen} onClose={() => setHelpOpen(false)} />
-    </div>
+    </main>
   );
 }
 

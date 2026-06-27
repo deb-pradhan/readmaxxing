@@ -131,7 +131,7 @@ export default function PodcastsPage(): React.JSX.Element {
         <ThemeSwitcher />
       </AppHeader>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <main id="main" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Podcasts</h1>

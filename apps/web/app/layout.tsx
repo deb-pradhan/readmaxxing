@@ -60,6 +60,15 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-canvas text-ink antialiased">
+        {/* Phase D P1 (D.5b): skip-to-content link.
+            The CSS class `sr-only-focusable` (in globals.css) hides the
+            link until it receives keyboard focus, then reveals it as a
+            button-like chip at the top-left of the viewport. Tabbing
+            into the page focuses this link first; pressing Enter jumps
+            focus to `<main id="main">` in the page content. */}
+        <a href="#main" className="sr-only-focusable">
+          Skip to main content
+        </a>
         <Providers>{children}</Providers>
       </body>
     </html>

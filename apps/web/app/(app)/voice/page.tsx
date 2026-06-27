@@ -54,7 +54,7 @@ export default function VoicePage(): React.JSX.Element {
         <ThemeSwitcher />
       </AppHeader>
 
-      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+      <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         <div>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Voices</h1>
           <p className="mt-2 text-base text-ink-muted">

@@ -667,7 +667,7 @@ export default function ReaderPage(): React.JSX.Element {
 
   if (pageError) {
     return (
-      <main className="mx-auto w-full max-w-reading px-4 py-16">
+      <main id="main" className="mx-auto w-full max-w-reading px-4 py-16">
         <h1 className="text-2xl font-semibold">Couldn&apos;t load this reader</h1>
         <p className="mt-3 text-ink-muted">{pageError}</p>
         <Button
@@ -685,7 +685,7 @@ export default function ReaderPage(): React.JSX.Element {
 
   if (!tree) {
     return (
-      <main className="mx-auto w-full max-w-reading px-4 py-16">
+      <main id="main" className="mx-auto w-full max-w-reading px-4 py-16">
         <p className="text-sm text-ink-muted">Loading document…</p>
       </main>
     );
@@ -700,7 +700,7 @@ export default function ReaderPage(): React.JSX.Element {
   );
 
   return (
-    <main className="relative">
+    <main id="main" className="relative">
       <ProgressRail percent={percent} minutesLeft={minutesLeft} />
       <ReadingRuler active={lineGuide} />
 
