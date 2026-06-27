@@ -12,7 +12,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Button, StatusPill, cn, type StatusPillStatus, scrollBehavior } from "@readmaxxing/ui";
+import {
+  Button,
+  Eyebrow,
+  StatusPill,
+  cn,
+  type StatusPillStatus,
+  scrollBehavior,
+} from "@readmaxxing/ui";
 import { AskChat } from "@/components/ai/AskChat";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { AppHeader } from "@/components/shared/AppHeader";
@@ -217,12 +224,13 @@ export default function EpisodePage(): React.JSX.Element {
           <ThemeSwitcher />
         </AppHeader>
         <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-          <p className="text-xs font-medium uppercase tracking-widest text-ink-muted">
-            {episode.podcast?.style?.replace("_", " ") ?? "podcast"}
-          </p>
-          <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">
-            {episode.title}
-          </h1>
+          {/* Phase F (F.2) v2 page header pattern. */}
+          <header>
+            <Eyebrow as="p">{episode.podcast?.style?.replace("_", " ") ?? "podcast"}</Eyebrow>
+            <h1 className="mt-2 break-words text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+              {episode.title}
+            </h1>
+          </header>
           <div className="mt-8 rounded-lg border border-border-subtle bg-card p-5 sm:p-6">
             <div className="flex items-center gap-3">
               <StatusPill status={pillStatus} />
@@ -270,14 +278,13 @@ export default function EpisodePage(): React.JSX.Element {
           ← All podcasts
         </Link>
 
+        {/* Phase F (F.2) v2 page header pattern. */}
         <header className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-widest text-ink-muted">
-            {episode.podcast?.style?.replace("_", " ") ?? "podcast"}
-          </p>
-          <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">
+          <Eyebrow as="p">{episode.podcast?.style?.replace("_", " ") ?? "podcast"}</Eyebrow>
+          <h1 className="mt-2 break-words text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
             {episode.title}
           </h1>
-          <p className="mt-2 text-sm text-ink-muted">
+          <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
             {formatTime(duration || episode.durationSeconds)} · Listen, follow along, and ask
             the hosts anything.
           </p>

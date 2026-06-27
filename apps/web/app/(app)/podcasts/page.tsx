@@ -15,7 +15,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, StatusPill, cn, type StatusPillStatus } from "@readmaxxing/ui";
+import { Button, Eyebrow, StatusPill, cn, type StatusPillStatus } from "@readmaxxing/ui";
 import { PodcastCreator, PODCAST_STYLES } from "@/components/ai/PodcastCreator";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
@@ -147,13 +147,17 @@ export default function PodcastsPage(): React.JSX.Element {
       </AppHeader>
 
       <main id="main" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        {/* Phase F (F.2) v2 page header pattern. */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Podcasts</h1>
-            <p className="mt-2 text-base text-ink-muted">
+          <header>
+            <Eyebrow as="p">Podcasts</Eyebrow>
+            <h1 className="mt-2 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+              Podcasts
+            </h1>
+            <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
               Short audio shows generated from your documents.
             </p>
-          </div>
+          </header>
           <Button
             type="button"
             variant={creatorOpen ? "secondary" : "primary"}

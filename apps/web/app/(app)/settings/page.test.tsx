@@ -50,9 +50,12 @@ describe("/settings (Phase E — E.4)", () => {
   it("does NOT call window.alert during render or normal interaction", async () => {
     const SettingsPage = (await import("./page")).default;
     render(<SettingsPage />);
-    // Wait for any useEffect to settle.
+    // Wait for any useEffect to settle. Phase F (F.2) — the page now
+    // has TWO "Settings" text nodes (the Eyebrow and the Display-1
+    // h1). Scope the assertion to the h1 so we don't pin the wrong
+    // element.
     await waitFor(() => {
-      expect(screen.getByText(/^Settings$/)).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
     });
     expect(alertSpy).not.toHaveBeenCalled();
   });

@@ -9,7 +9,7 @@
  */
 
 import * as React from "react";
-import { Card, Chip } from "@readmaxxing/ui";
+import { Card, Chip, Eyebrow } from "@readmaxxing/ui";
 import { AskChat } from "@/components/ai/AskChat";
 import { VoiceInput } from "@/components/assistant/VoiceInput";
 import { VoiceOutput } from "@/components/assistant/VoiceOutput";
@@ -77,14 +77,17 @@ export default function AssistantPage(): React.JSX.Element {
       </AppHeader>
 
       <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        {/* Heading */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Assistant</h1>
-          <p className="mt-2 text-base text-ink-muted">
+        {/* Phase F (F.2) v2 page header pattern. */}
+        <header>
+          <Eyebrow as="p">Assistant</Eyebrow>
+          <h1 className="mt-2 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+            Assistant
+          </h1>
+          <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
             Ask anything about what you&apos;re reading — by voice or text. I can catch
             you up, pull the key idea, or quiz you on what stuck.
           </p>
-        </div>
+        </header>
 
 {/* Phase E (E.1): honest empty state. No fabricated greeting, no
           invented activity stats (audit D finding). The hero invites the

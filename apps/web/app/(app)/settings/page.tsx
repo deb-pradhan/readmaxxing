@@ -12,7 +12,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, cn, type VoicePickerVoice, VoicePicker } from "@readmaxxing/ui";
+import {
+  Button,
+  Eyebrow,
+  cn,
+  type VoicePickerVoice,
+  VoicePicker,
+} from "@readmaxxing/ui";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
@@ -150,9 +156,13 @@ export default function SettingsPage(): React.JSX.Element {
         <ThemeSwitcher />
       </AppHeader>
       <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+        {/* Phase F (F.2) v2 page header pattern. */}
         <header className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Settings</h1>
-          <p className="mt-2 text-base text-ink-muted">
+          <Eyebrow as="p">Settings</Eyebrow>
+          <h1 className="mt-1 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+            Settings
+          </h1>
+          <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
             Tune your reading. Changes save per section, optimistic — you can leave any time.
           </p>
         </header>

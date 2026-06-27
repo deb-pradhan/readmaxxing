@@ -13,7 +13,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Button, cn } from "@readmaxxing/ui";
+import { Button, Eyebrow, cn } from "@readmaxxing/ui";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
 
@@ -145,9 +145,13 @@ export default function DictationPage(): React.JSX.Element {
       </AppHeader>
 
       <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+        {/* Phase F (F.2) v2 page header pattern. */}
         <header className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Voice typing</h1>
-          <p className="text-base text-ink-muted">
+          <Eyebrow as="p">Dictation</Eyebrow>
+          <h1 className="mt-1 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+            Voice typing
+          </h1>
+          <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
             Talk, then review the cleanup. We show every change — nothing rewritten in silence.
           </p>
         </header>

@@ -18,7 +18,7 @@ import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { SegmentTree, SpeechMark } from "@readmaxxing/core";
 import { MediaSessionWrapper } from "@readmaxxing/core";
-import { Button } from "@readmaxxing/ui";
+import { Button, Eyebrow } from "@readmaxxing/ui";
 import { scrollCurrentSentenceIntoView, scrollBehavior } from "@readmaxxing/ui";
 import { DEFAULT_ELEVENLABS_VOICE_ID, resolveVoiceName } from "@readmaxxing/tts";
 import { PlayerBar } from "@/components/player/PlayerBar";
@@ -773,9 +773,15 @@ export default function ReaderPage(): React.JSX.Element {
         data-coachmark-target="reader-toolbar"
         className="mx-auto flex w-full max-w-reading flex-col gap-3 px-4 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10"
       >
+        {/* Phase F (F.2): v2 page header pattern — Eyebrow first,
+            then Display-1 (clamped) for the doc title. The reader is
+            special: it doesn't expose a page-level <h1> (the chrome
+            header lives inside the reader surface, not the document
+            chrome), so we use the title here as the Display-1 — it's
+            the largest thing on screen and earns the visual weight. */}
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-widest text-ink-muted">Now playing</p>
-          <h1 className="mt-1 truncate text-xl font-semibold tracking-tight sm:text-2xl">
+          <Eyebrow as="p">Now playing</Eyebrow>
+          <h1 className="mt-1 line-clamp-2 break-words text-[clamp(28px,7vw,44px)] font-extrabold leading-[1.05] tracking-[-0.035em]">
             {title}
           </h1>
         </div>

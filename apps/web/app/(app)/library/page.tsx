@@ -12,7 +12,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Button, cn } from "@readmaxxing/ui";
+import { Button, Eyebrow, cn } from "@readmaxxing/ui";
 import { DocCard } from "@/components/library/DocCard";
 import { ImportDropzone } from "@/components/library/ImportDropzone";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
@@ -264,15 +264,20 @@ export default function LibraryPage(): React.JSX.Element {
         </div>
       </header>
 
-      {/* Heading */}
-      <div className="pt-8 sm:pt-12">
-        <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+      {/* Heading — Phase F (F.2) v2 page header pattern. Eyebrow +
+          Display-1 + Subtitle in that order. The eyebrow sits above
+          the title at 11–12px / weight 600 / +0.08em tracking;
+          Display-1 is the fluid clamp(34,8vw,52) / weight 800;
+          subtitle is the secondary text color at 17–18px / weight 500. */}
+      <header className="pt-8 sm:pt-12">
+        <Eyebrow as="p">Library</Eyebrow>
+        <h1 className="mt-2 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
           Your library
         </h1>
-        <p className="mt-2 text-base text-ink-muted">
+        <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
           Paste, drop, or link anything — start listening in seconds.
         </p>
-      </div>
+      </header>
 
       {/* Phase E (E.8): recap card. Sits above Continue shelf so
           returning users see "you were here" before the doc grid. The
