@@ -27,3 +27,6 @@ export * from "./LeaderboardTable";
 export * from "./BadgeGrid";
 export * from "./XPBar";
 export * from "./QuestList";
+export * from "./CoverArt";
+export * from "./WaveformScrubber";
+export * from "./Equalizer";
