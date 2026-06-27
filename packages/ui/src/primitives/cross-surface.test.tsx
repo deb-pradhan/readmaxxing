@@ -18,6 +18,7 @@ import * as React from "react";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { KaraokeHighlighter, ReaderColumn } from "@readmaxxing/ui";
+import { font } from "../tokens";
 import { buildSegmentTree } from "@readmaxxing/core";
 
 const SAMPLE = "The quick brown fox jumps over the lazy dog. Hello world.";
@@ -80,5 +81,15 @@ describe("cross-surface DOM contract", () => {
       <KaraokeHighlighter tree={tree()} currentWordIndex={-1} />,
     );
     expect(html).toContain("duration-highlight");
+  });
+
+  it("v2 mono font token resolves to a non-empty font-family string", () => {
+    // The mono token is consumed by instrument-grade surfaces (PlayerBar
+    // timecode, count badges, eyebrow micro-labels — see DESIGN-SYSTEM
+    // §25.2). This snapshot pins that the token string is non-empty so
+    // a typo in the stack fails the build, not the rendered DOM.
+    expect(typeof font.mono).toBe("string");
+    expect(font.mono.length).toBeGreaterThan(0);
+    expect(font.mono).toContain("Geist Mono");
   });
 });
