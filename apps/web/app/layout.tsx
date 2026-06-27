@@ -1,31 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import { Inter, Source_Serif_4, Atkinson_Hyperlegible } from "next/font/google";
-import { themeCssVars, themes } from "@readmaxxing/ui";
-import { Providers, initialThemeFromCookie } from "./providers";
+import { Inter } from "next/font/google";
+import { themeCssVars, themes, initialThemeFromCookie } from "@readmaxxing/ui";
+import { Providers } from "./providers";
 import "./globals.css";
 
-// Per UI-UX.md §3.2:
-// - Long-form serif: Source Serif 4 (book-like).
-// - UI sans: Inter.
-// - Dyslexia option: Atkinson Hyperlegible (offer, never force).
+// Per DESIGN-SYSTEM.md §4.1:
+// - Inter is the only type family. No Source Serif, no Atkinson.
+// - Tabular figures globally on body (handled in globals.css).
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-sans-loaded",
-});
-
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-serif-loaded",
-});
-
-const atkinson = Atkinson_Hyperlegible({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-dyslexia-loaded",
-  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -40,8 +26,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FBFBF8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E0E10" },
+    { media: "(prefers-color-scheme: light)", color: "#ECEFE6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E0F12" },
   ],
 };
 
@@ -59,7 +45,7 @@ export default async function RootLayout({
       lang="en"
       data-theme={themeName}
       style={themeVars as React.CSSProperties}
-      className={`${inter.variable} ${sourceSerif.variable} ${atkinson.variable}`}
+      className={inter.variable}
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-canvas text-ink antialiased">

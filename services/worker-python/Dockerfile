@@ -16,15 +16,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
 # System deps:
-# - tesseract / libgl / libgomp → OCR (pytesseract + PaddleOCR runtime)
+# - libgomp                      → OpenMP runtime (numpy / onnx audio stack)
 # - ffmpeg / libsndfile         → audio I/O
 # - libxml / libxslt             → lxml, ebooklib
 # - curl                         → healthcheck
+# OCR uses a vision LLM via OpenRouter — no Tesseract/PaddleOCR system deps.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    libgl1 \
-    libglib2.0-0 \
     libgomp1 \
     ffmpeg \
     libsndfile1 \

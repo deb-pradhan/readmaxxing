@@ -1,32 +1,32 @@
 /**
- * Font families per UI-UX.md §3.2:
- * - Long-form serif: Source Serif (book-like, immersion).
- * - UI sans: Inter (system fallback).
- * - Dyslexia option: Atkinson Hyperlegible (offer, never force).
- * - Mono for code blocks.
+ * Font families per DESIGN-SYSTEM.md §4:
+ * - Inter is the only family — UI, headings, body, marketing display.
+ *   Tabular figures for any column of numbers / time / currency.
+ * - JetBrains Mono is reserved for code-like strings (IDs, JSON,
+ *   technical logs).
  *
- * Fonts are loaded via `next/font/google` in apps/web/app/layout.tsx
- * and exposed here as CSS `font-family` stacks that the web app can
- * wire to a `data-font` attribute on the root.
+ * Fonts are loaded via `next/font/google` in `apps/web/app/layout.tsx`
+ * and exposed here as CSS `font-family` stacks the rest of the app can
+ * wire to `data-font` or Tailwind utilities.
+ *
+ * No serifs. No dyslexia font toggle. The system is single-family on
+ * purpose — the reader surface stays calm because the typography is
+ * consistent, not because we offer 17 choices.
  */
 
-export type FontFamily = "serif" | "sans" | "dyslexia" | "mono";
+export type FontFamily = "sans" | "mono";
 
 export const fontStacks: Record<FontFamily, string> = {
-  serif: '"Source Serif 4", "Source Serif Pro", Charter, "Iowan Old Style", Georgia, serif',
   sans: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  dyslexia:
-    '"Atkinson Hyperlegible", "Inter", system-ui, -apple-system, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
 };
 
-export const defaultFontFor: Record<"reading" | "ui" | "code", FontFamily> = {
-  reading: "serif",
+export const defaultFontFor: Record<"ui" | "code", FontFamily> = {
   ui: "sans",
   code: "mono",
 };
 
-/** Tabular figures for any time/progress/count column. */
+/** Tabular figures for any time / progress / count column. */
 export const tabularFiguresStyle = {
   fontVariantNumeric: "tabular-nums" as const,
   fontFeatureSettings: '"tnum" 1' as const,

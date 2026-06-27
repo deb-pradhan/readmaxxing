@@ -3,7 +3,7 @@
 FastAPI + Celery + Redis worker service. Responsible for:
 
 - **Document parsing** (PDF / DOCX / MD / EPUB / URL) → SegmentTree
-- **OCR** (PaddleOCR / Tesseract) — for scanned PDFs and images
+- **OCR** (vision LLM via OpenRouter) — for scanned images
 - **LLM orchestration via [OpenRouter](https://openrouter.ai/)** — summaries, quizzes, recaps, podcast scripts
 - **Local TTS** (sherpa-onnx / Piper / Kokoro / XTTS) — for voice cloning + offline
 
@@ -14,7 +14,7 @@ FastAPI + Celery + Redis worker service. Responsible for:
 | GET    | `/health`          | Liveness check                          | 1     |
 | GET    | `/ready`           | Readiness check (Redis + Celery ping)   | 1     |
 | POST   | `/v1/parse`        | Sync document parsing                   | 2     |
-| POST   | `/v1/ocr`          | OCR for scans                           | 5     |
+| POST   | `/v1/ocr`          | Vision-LLM OCR for image scans           | 5     |
 | POST   | `/v1/ai/summary`   | Sync AI summary (uses OpenRouter)       | 3     |
 | POST   | `/v1/tts/stream`   | Stream TTS synthesis                    | 2     |
 
@@ -106,7 +106,7 @@ services/worker-python/
 │       ├── __init__.py
 │       ├── openrouter.py      Shared OpenRouter HTTP client + prompt helpers
 │       ├── parse.py           Document → SegmentTree
-│       ├── ocr.py             Image / PDF → text
+│       ├── ocr.py             Image → text (vision LLM)
 │       ├── ai.py              Summary / quiz / recap / ask / fillers
 │       ├── podcast.py         Multi-speaker podcast script → volume
 │       └── tts.py             Local TTS (sherpa-onnx) stub

@@ -31,9 +31,14 @@ NUM_LIST_PREFIX = re.compile(r"^\s*\d+\.\s+")
 BLOCKQUOTE_PREFIX = re.compile(r"^\s*>\s?")
 
 SENTENCE_BOUNDARY_RE = re.compile(r"([.!?])(['\"\u2019\u201d)\]]*)\s+")
+# The body allows an intra-word apostrophe (straight ' or typographic U+2019)
+# between word characters, so contractions/possessives ("don't", "o'clock",
+# "James's") stay a single word. Leading/trailing apostrophes remain quote
+# delimiters. Mirror of WORD_RE in packages/core/src/pipeline/segment-tree.ts.
 WORD_RE = re.compile(
     r"[\u2018\u2019\u201c\u201d\"'([]*"
-    r"([^\s\u2018\u2019\u201c\u201d\"',.;:!?()\[\]]+)"
+    r"([^\s\u2018\u2019\u201c\u201d\"',.;:!?()\[\]]+"
+    r"(?:['\u2019][^\s\u2018\u2019\u201c\u201d\"',.;:!?()\[\]]+)*)"
     r"([.,;:!?\u2019\u201d)\]]*)"
 )
 
@@ -95,7 +100,10 @@ def _tokenize_sentence(sentence_text: str, sentence_start: int) -> list[Word]:
         word_text = prefix + suffix
         if not word_text:
             continue
-        start = sentence_start + match.start()
+        # Advance past any leading quote/paren the regex consumed but the word
+        # text excludes, so [start, end) exactly spans word_text in the source.
+        lead_len = len(match.group(0)) - len(word_text)
+        start = sentence_start + match.start() + lead_len
         words.append(
             Word(text=word_text, start=start, end=start + len(word_text), index=idx)
         )
@@ -110,8 +118,25 @@ def _split_paragraph(paragraph_text: str, paragraph_start: int) -> list[Sentence
 
     while cursor < len(paragraph_text):
         remaining = paragraph_text[cursor:]
-        boundary = SENTENCE_BOUNDARY_RE.search(remaining)
-        if boundary is None:
+
+        # Scan forward for the next *real* sentence boundary, skipping any that
+        # fall right after an abbreviation ("Dr.", "Mr.", "e.g."). The cursor
+        # stays anchored at the sentence start so a skipped abbreviation remains
+        # part of this sentence rather than being dropped (mirrors the inner
+        # loop of TS splitParagraph in segment-tree.ts).
+        end_idx = -1
+        for boundary in SENTENCE_BOUNDARY_RE.finditer(remaining):
+            preceding = paragraph_text[: cursor + boundary.start()]
+            token_match = re.search(r"(\S+)$", preceding)
+            last_token = token_match.group(1) if token_match else ""
+            stripped = re.sub(r"[.,;:!?\u2019\u201d)\]]+$", "", last_token).lower()
+            if stripped in ABBREVIATIONS:
+                continue
+            end_idx = cursor + boundary.end()
+            break
+
+        if end_idx == -1:
+            # No real boundary left \u2014 take the rest of the paragraph.
             text = paragraph_text[cursor:]
             start = paragraph_start + cursor
             if text.strip():
@@ -128,19 +153,6 @@ def _split_paragraph(paragraph_text: str, paragraph_start: int) -> list[Sentence
                     )
                     sentence_idx += 1
             break
-
-        end_idx = cursor + boundary.end()
-
-        # Check the token immediately before the terminator to guard
-        # against abbreviations like "Dr.", "Mr.", "e.g.".
-        preceding = paragraph_text[: cursor + boundary.start()]
-        token_match = re.search(r"(\S+)$", preceding)
-        last_token = token_match.group(1) if token_match else ""
-        stripped = re.sub(r"[.,;:!?\u2019\u201d)\]]+$", "", last_token).lower()
-        if stripped in ABBREVIATIONS:
-            # Move past this terminator and look for the next one.
-            cursor = cursor + boundary.end()
-            continue
 
         text = paragraph_text[cursor:end_idx]
         start = paragraph_start + cursor
@@ -178,6 +190,11 @@ def _normalize_input(text: str) -> tuple[str, str | None, str | None]:
         author = author_match.group(1).strip()
         t = t[author_match.end():]
 
+    # A stripped Title:/Author: prefix leaves the blank-line separator behind;
+    # drop those leading newlines so text begins at the body (parity with TS).
+    if title is not None or author is not None:
+        t = t.lstrip("\n")
+
     t = re.sub(r"\n{3,}", "\n\n", t)
     return t, title, author
 
@@ -205,19 +222,26 @@ def build_segment_tree(
 
         heading_level = 0
         body = trimmed
+        prefix_len = 0
         heading_match = HEADING_PREFIX.match(body)
         if heading_match:
             heading_level = min(6, len(heading_match.group(1)))
-            body = body[heading_match.end():]
+            prefix_len = heading_match.end()
+            body = body[prefix_len:]
         elif LIST_PREFIX.match(body) or NUM_LIST_PREFIX.match(body):
-            body = LIST_PREFIX.sub("", body)
-            body = NUM_LIST_PREFIX.sub("", body)
+            stripped = NUM_LIST_PREFIX.sub("", LIST_PREFIX.sub("", body))
+            prefix_len = len(body) - len(stripped)
+            body = stripped
         elif BLOCKQUOTE_PREFIX.match(body):
-            body = BLOCKQUOTE_PREFIX.sub("", body)
+            stripped = BLOCKQUOTE_PREFIX.sub("", body)
+            prefix_len = len(body) - len(stripped)
+            body = stripped
 
         start = cursor
         end = start + len(trimmed)
-        sentences = _split_paragraph(body, start)
+        # Shift the sentence/word offset base past the stripped prefix so word
+        # offsets line up with the (prefixed) paragraph text.
+        sentences = _split_paragraph(body, start + prefix_len)
         word_count = sum(len(s.words) for s in sentences)
         total_words += word_count
 

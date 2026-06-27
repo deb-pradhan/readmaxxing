@@ -33,6 +33,9 @@ model User {
   // Tier flag — set by webhook / settings; drives router policy.
   isPremium       Boolean  @default(false)
 
+  // IANA timezone for the user's local date (used by the habit layer).
+  timezone        String   @default("UTC")
+
   documents           Document[]
   positions           PlaybackPosition[]
   summaries           Summary[]
@@ -48,6 +51,7 @@ model User {
   dailyGoals          DailyGoal[]
   usageLedger         UsageLedger[]
   consents            Consent[]
+  preferences         UserPreference?
 }
 
 // =============================================================================
@@ -79,6 +83,11 @@ model Document {
 
   pinned         Boolean  @default(false)
   archivedAt     DateTime?
+
+  /// Flat `(paragraphIndex * 1000 + sentenceIndex)` anchors of "filler"
+  /// sentences the player can auto-skip when skip-fillers is on. Populated
+  /// by the `detect_fillers` AI task (Phase 3).
+  fillerSegments Int[]    @default([])
 
   addedAt        DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -246,6 +255,22 @@ model Note {
   updatedAt      DateTime @updatedAt
 
   @@index([userId, documentId, updatedAt])
+}
+
+/// Recap cache — "pick up where you left off" summaries keyed by
+/// (user, document, last word offset). Invalidated implicitly when the
+/// user advances past `anchorWordOffset` (the cache hit check only
+/// returns rows where the anchor is exactly the current offset).
+model RecapCache {
+  id                String   @id @default(cuid())
+  userId            String
+  documentId        String
+  anchorWordOffset  Int
+  text              String   @db.Text
+  createdAt         DateTime @default(now())
+
+  @@index([userId, documentId, anchorWordOffset])
+  @@index([createdAt])
 }
 
 // =============================================================================
@@ -481,6 +506,20 @@ model UsageLedger {
   createdAt      DateTime @default(now())
 
   @@index([userId, metric, createdAt])
+}
+
+// =============================================================================
+// User preferences — Phase 5.5 settings page. One row per user; the
+// `prefs` JSON column is a typed envelope of the SettingsPage sections.
+// =============================================================================
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prefs     Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =============================================================================

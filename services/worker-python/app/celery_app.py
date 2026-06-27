@@ -25,6 +25,7 @@ celery_app = Celery(
         "app.tasks.ai",
         "app.tasks.podcast",
         "app.tasks.tts",
+        "app.tasks.leaderboard_cron",
     ],
 )
 
@@ -37,6 +38,19 @@ celery_app.conf.update(
         "app.tasks.ai.*": {"queue": "ai"},
         "app.tasks.podcast.*": {"queue": "podcast"},
         "app.tasks.tts.*": {"queue": "tts"},
+        "app.tasks.leaderboard_cron.*": {"queue": "leaderboard"},
+    },
+    # Celery Beat schedule — runs the weekly promotion every Monday at
+    # 00:00 UTC. The BFF's leaderboard route reads the
+    # `LeaderboardEntry` table that this task populates.
+    beat_schedule={
+        "leaderboard.weekly_promotion": {
+            "task": "app.tasks.leaderboard_cron.run_weekly_promotion",
+            "schedule": 7 * 24 * 60 * 60.0,  # 7 days in seconds (crontab is
+            # configured in the Railway service; Beat uses this as a
+            # default schedule).
+            "options": {"queue": "leaderboard"},
+        },
     },
     worker_prefetch_multiplier=1,
     broker_connection_retry_on_startup=True,

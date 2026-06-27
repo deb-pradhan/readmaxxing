@@ -84,6 +84,9 @@ export async function clientSynthesize(
     } satisfies ClientSynthesizeError;
   }
   const payload = (await res.json()) as {
+    // `/api/tts` returns the base64 MP3 under `audio` (the SpeechMarkChunk
+    // field); `audioBase64`/`audioUrl` are accepted as fallbacks.
+    audio?: string;
     audioUrl?: string;
     audioBase64?: string;
     marks: SpeechMark[];
@@ -93,8 +96,9 @@ export async function clientSynthesize(
 
   let blob: Blob;
   let audioUrl: string;
-  if (payload.audioBase64) {
-    const bytes = base64ToBytes(payload.audioBase64);
+  const base64Audio = payload.audio ?? payload.audioBase64;
+  if (base64Audio) {
+    const bytes = base64ToBytes(base64Audio);
     blob = new Blob([bytes as unknown as BlobPart], { type: "audio/mpeg" });
     audioUrl = URL.createObjectURL(blob);
   } else if (payload.audioUrl) {

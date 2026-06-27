@@ -4,7 +4,7 @@ Task modules in this package (each has its own `app.tasks.<name>` namespace
 and Celery queue):
 
   - `parse`     — Document parsing → SegmentTree (mirrors packages/core/src/pipeline/segment-tree.ts)
-  - `ocr`       — OCR for scans (PaddleOCR / Tesseract)
+  - `ocr`       — OCR for image scans (vision LLM via OpenRouter)
   - `ai`        — OpenRouter-backed AI tasks (summary, quiz, recap, ask, fillers)
   - `podcast`   — Multi-speaker podcast generation
   - `tts`       — Local TTS stub (Phase 5)

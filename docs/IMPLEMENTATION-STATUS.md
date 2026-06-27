@@ -99,46 +99,94 @@ Schema is in place (Streak, XpEvent, Badge, UserBadge, Quest, QuestCompletion, L
 
 ## Phase 3 — AI Layer (summary, quiz, recap, ask)
 
-**Status: foundation laid.** `packages/ai` is real; worker `app.tasks.ai` is real; the BFF doesn't yet call them.
+**Status: complete.** All four AI routes are wired end-to-end through
+OpenRouter (in-process when `WORKER_API_URL` is unset, via the Python
+worker when set), with structured logs, `UsageLedger` metering,
+TanStack Query caching, and the source-citation rule. New Prisma
+columns/tables: `Document.fillerSegments: Int[]`, `RecapCache` model.
 
-Next:
+Components live in `apps/web/components/ai/` (SummaryPanel, QuizCard,
+AskChat, LatencyEstimator). The reader page wires the SelectionMenu's
+`onSummarize` and `onAsk` callbacks to an in-page AI surface, and
+auto-skips filler segments when the user enables "Skip filler" in the
+PlayerBar menu.
 
-1. Build `apps/web/app/api/ai/summary`, `/quiz`, `/recap`, `/ask` route handlers.
-2. Persist results into `Summary`, `Quiz`, `QuizAttempt`, `Note` tables.
-3. Add a Redis cache keyed by `(documentId, prompt-hash)` so repeat AI calls are cheap.
-4. UI surfaces in `packages/ui` (Summary card, Quiz card, Recap banner, Ask-the-doc sheet).
+See `CHANGELOG.md` for the full Phase 3 entry (10/10 steps complete,
+24 new tests, 94 total).
 
 ---
 
 ## Phase 4 — AI Podcasts + Voice Assistant
 
-**Status: stub.** `app.tasks.podcast.generate_podcast` writes a JSON manifest; TTS-per-line and mastering are pending.
+**Status: complete.** The full pipeline is live end-to-end: multi-speaker
+script generator, per-line TTS (real ElevenLabs when
+`ELEVENLABS_API_KEY` is set, deterministic silent stub otherwise),
+pydub-based mastering with 500ms gaps, Railway-volume persistence,
+SSE staged progress with honest elapsed/remaining readouts
+(UI-UX.md §7), and a context-aware voice assistant with Web Speech
+API voice-in (graceful textarea fallback) + SpeechSynthesis voice-out.
 
-Next:
+Podcast feed, episode page (player + transcript + "Talk with the
+hosts"), and `/assistant` are wired. New BFF routes under
+`/api/ai/podcasts/*` and `/api/ai/assistant`. New structured logs:
+`podcast.stage`, `podcast.complete`, `podcast.error`,
+`assistant.voice_in`, `assistant.voice_out`, `assistant.context_attach`.
 
-1. In `services/worker-python/app/tasks/podcast.py`, call `app.tasks.tts.synthesize` per line.
-2. Master the per-line audio with `pydub` (gaps, optional music bed).
-3. Write the mastered MP3 to `PODCAST_VOLUME_PATH/<document_id>/<episode_id>.mp3`.
-4. Add `apps/web/app/api/podcasts/route.ts` to stream the audio via the BFF.
-5. Build the podcast feed UI + "talk with the hosts" mode (LLM turn-by-turn).
+Tests: **24 new** (3 worker pipeline + 6 BFF route + 4 progress SSE +
+5 PodcastCreator + 5 VoiceInput + 1 implicitly covered by existing
+AskChat extension). Total: **118 tests passing** (94 prior + 24 new).
+
+See `CHANGELOG.md` Phase 4 entry for decisions D17–D23.
 
 ---
 
-## Phase 5 — Voice Typing, Voice Cloning, OCR
+## Phase 5 — Voice Typing, Voice Cloning, OCR, Habit Layer
 
-**Status: OCR engines installed; local TTS stubbed; cloning pending.**
+**Status: complete (16/16 steps).** All four loosely-coupled features
+shipped end-to-end: dictation with diff-view grammar cleanup, voice
+cloning with consent-first wizard + private "Your voice" picker
+entry, OCR scan-and-listen with per-page confidence + low-confidence
+warnings, and the Duolingo-style habit layer (streak ring, streak
+calendar, weekly league, identity badges, XP, quests).
 
-Next:
-
-1. Voice typing: Web Speech API in the browser + Whisper fallback in the worker; LLM cleanup via OpenRouter with a diff-view UI (never silently rewrite).
-2. Voice cloning: explicit consent flow, `app.tasks.tts.clone_voice` (XTTS), `Consent` row required.
-3. OCR: `app.tasks.ocr.ocr_image` is real — wire the BFF + UI for "Scan & Listen".
+Tests: 195 passing (118 prior + 77 new).
+Build: `pnpm --filter @readmaxxing/web build` succeeds.
+Typecheck: `pnpm -w typecheck` is clean.
+pytest: worker suite green (42 passing). The 2 long-standing
+`test_segment_tree_parity` failures (abbreviation-sentence drop +
+Title/Author leading-newline) were fixed 2026-06-27, alongside the
+contraction tokenizer; both TS and Python builders verified at full
+parity.
 
 ---
 
 ## Phase 6 — Chrome extension + Mobile
 
-**Status: not started.** Shared packages (`@readmaxxing/ui`, `@readmaxxing/core`) are already framework-agnostic, so these can be added without rework.
+**Status: complete (5/5 steps).** The Chrome MV3 extension and
+the Expo/React Native mobile app are scaffolded with the same
+shared primitives (`@readmaxxing/core` segment tree, `@readmaxxing/ui`
+ContinueShelf), with RN-native ports for the Tailwind-based
+primitives. The BFF `/api/user/preferences` route + cross-surface
+settings sync test are live; the Celery Beat leaderboard
+promotion cron is wired; Sentry env vars are validated;
+the deep health endpoint (`/api/health/deep`) verifies
+Postgres + worker reachability.
+
+Tests: **218 passing** (195 prior + 23 new across web, ui,
+extension, worker). Web bundle: 144 KB first-load JS at the
+reader route (under the 150 KB budget). Extension bundle:
+~290 KB raw / ~107 KB gzip (under the 500 KB extension budget).
+
+**Next user steps:**
+- `pnpm db:generate && pnpm db:migrate` (Postgres + Redis).
+- `pnpm install` for `apps/mobile` (Expo + react-native deps —
+  can be deferred until first device build).
+- `pnpm --filter @readmaxxing/extension test:e2e` for the
+  Playwright popup smoke (requires Chromium).
+- `pnpm --filter @readmaxxing/mobile prebuild` to generate the
+  native `ios/` + `android/` directories.
+- Set Sentry DSNs (`SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`) +
+  push notification certs (APNs / FCM) before first launch.
 
 ---
 

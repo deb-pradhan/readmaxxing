@@ -18,11 +18,10 @@ export interface SliderProps {
 }
 
 /**
- * Minimal accessible range slider built on `role="slider"`. Avoids an a11y-heavy
- * native `<input type="range">` styling dependency. Keyboard:
- *   ←/→   ±step
- *   Home/End   jump to min/max
- *   PageUp/PageDown   ±(max-min)*0.1
+ * Minimal accessible range slider built on `role="slider"`. Avoids an
+ * a11y-heavy native `<input type="range">` styling dependency.
+ * Keyboard: ←/→  ±step · Home/End  jump to min/max ·
+ * PageUp/PageDown  ±(max-min)*0.1.
  */
 export const Slider: React.FC<SliderProps> = ({
   value,
@@ -91,14 +90,14 @@ export const Slider: React.FC<SliderProps> = ({
         className,
       )}
     >
-      <div className="absolute inset-y-0 left-0 right-0 my-auto h-1.5 rounded-full bg-border" />
+      <div className="absolute inset-y-0 left-0 right-0 my-auto h-1 rounded-full bg-border" />
       <div
-        className="absolute inset-y-0 left-0 my-auto h-1.5 rounded-full bg-accent transition-[width] duration-fast ease-out"
+        className="absolute inset-y-0 left-0 my-auto h-1 rounded-full bg-coral-bg transition-[width] duration-fast ease-out"
         style={{ width: `${pct}%` }}
       />
       <div
         className={cn(
-          "absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-accent bg-card shadow-sm transition-transform duration-fast ease-out",
+          "absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-coral-bg bg-card shadow-sm transition-transform duration-fast ease-out",
           "group-hover:scale-110 group-focus-visible:scale-110",
         )}
         style={{ left: `${pct}%` }}

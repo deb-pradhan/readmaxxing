@@ -1,29 +1,13 @@
 "use client";
 
 /**
- * Player — markup-only player shell. Implements UI-UX.md §4 (12 rules).
+ * Player — markup-only player shell. Implements DESIGN-SYSTEM §11
+ * (Buttons / chips), §4 (motion), §13 (dashboard card patterns).
  *
  * State and audio playback live in the *consumer* (apps/web's
- * `components/player/Player.tsx`), which feeds this primitive via props.
- * The primitive renders the controls + scrubber + speed menu + keyboard
- * shortcut help, and surfaces callbacks for every interaction.
- *
- * Why markup-only?
- * - Keeps `packages/ui` framework-agnostic enough for the future Chrome
- *   extension and React Native surfaces to reuse it.
- * - The audio element itself is owned by the consumer (so it can stream
- *   chunks into a single `<audio>` tag and switch sources for caching).
- *
- * Keyboard map per UI-UX.md §4.7 (handled by the consumer):
- *   Space              play/pause
- *   ←/→                seek ±15s
- *   Shift+←/→          seek ±30s
- *   ↑/↓                speed ±0.25
- *   J/K                prev/next sentence
- *   R                  repeat sentence
- *   F                  focus mode
- *   /                  search
- *   ?                  show shortcuts
+ * `components/player/Player.tsx`), which feeds this primitive via
+ * props. The primitive renders the controls + scrubber + speed menu
+ * and surfaces callbacks for every interaction.
  */
 
 import * as React from "react";
@@ -55,7 +39,7 @@ export interface PlayerProps {
   onShowSpeedMenu?: () => void;
   /** Loading indicator when audio is buffering. */
   loading?: boolean;
-  /** Error message — UI-UX.md §11: human + actionable. */
+  /** Error message — DESIGN-SYSTEM §17.3: human + actionable. */
   errorMessage?: string | null;
   /** Status string for screen readers. */
   statusLabel?: string;
@@ -130,7 +114,7 @@ export const Player = React.forwardRef<HTMLDivElement, PlayerProps>(function Pla
           <button
             type="button"
             onClick={onOpenVoices}
-            className="hidden h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium hover:bg-card-muted focus-visible:shadow-focus sm:inline-flex"
+            className="hidden h-12 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium hover:bg-card-muted focus-visible:outline-none focus-visible:shadow-focus sm:inline-flex"
             aria-label="Change voice"
           >
             <span aria-hidden>♪</span>
@@ -141,7 +125,7 @@ export const Player = React.forwardRef<HTMLDivElement, PlayerProps>(function Pla
         <button
           type="button"
           onClick={onShowHelp}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted focus-visible:shadow-focus"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted focus-visible:outline-none focus-visible:shadow-focus"
           aria-label="Show keyboard shortcuts"
           title="Keyboard shortcuts (?)"
         >
@@ -178,8 +162,8 @@ export function PlayPauseButton({ playing, loading, onClick, ...rest }: PlayPaus
       onClick={onClick}
       aria-label={rest["aria-label"] ?? (playing ? "Pause" : "Play")}
       className={cn(
-        "inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full",
-        "bg-accent text-white transition-transform duration-fast ease-out",
+        "inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-md",
+        "bg-coral-bg text-white transition-transform duration-fast ease-out",
         "hover:scale-[1.03] active:scale-[0.97] focus-visible:shadow-focus",
       )}
     >
@@ -220,7 +204,7 @@ export function Scrubber({ time, duration, onScrubStart, onScrubChange, onScrubE
         onPointerUp={(e) => onScrubEnd(Number(e.currentTarget.value))}
         onKeyUp={(e) => onScrubEnd(Number((e.target as HTMLInputElement).value))}
         aria-label="Seek"
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-border-subtle accent-accent"
+        className="h-1 w-full cursor-pointer appearance-none rounded-full bg-border-subtle accent-coral-bg focus-visible:outline-none focus-visible:shadow-focus"
       />
       <span className="tabular w-9 text-right text-xs text-ink-muted">{Math.round(safe * 100)}%</span>
     </div>
@@ -253,7 +237,7 @@ export function SpeedMenu({ speed, presets, onChange, onOpenCustom }: SpeedMenuP
           aria-pressed={speed === p}
           className={cn(
             "tabular min-w-[3rem] rounded-sm px-2 py-1 text-xs font-medium transition-colors",
-            speed === p ? "bg-accent text-white" : "text-ink-muted hover:bg-card-muted",
+            speed === p ? "bg-coral-bg text-white" : "text-ink-muted hover:bg-card-muted",
           )}
         >
           {p}×
@@ -287,10 +271,10 @@ export function KeyboardHelp({ open, onClose }: KeyboardHelpProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg border border-border-subtle bg-card p-6 shadow-lg"
+        className="w-full max-w-md rounded-xl border border-border-subtle bg-card p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 font-serif text-lg font-semibold">Keyboard shortcuts</h2>
+        <h2 className="mb-4 text-lg font-semibold">Keyboard shortcuts</h2>
         <dl className="grid grid-cols-2 gap-3 text-sm">
           {SHORTCUTS.map(([k, v]) => (
             <React.Fragment key={k}>
@@ -302,7 +286,7 @@ export function KeyboardHelp({ open, onClose }: KeyboardHelpProps) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 h-11 w-full rounded-md bg-accent text-white focus-visible:shadow-focus"
+          className="mt-6 h-12 w-full rounded-md bg-coral-bg text-white focus-visible:shadow-focus"
         >
           Close
         </button>

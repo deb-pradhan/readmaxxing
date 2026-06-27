@@ -50,10 +50,9 @@ dependencies = [
   "nltk==3.9.1",
 
   # --- OCR ---
-  "pytesseract==0.3.13",
-  "Pillow==11.0.0",
-  "paddleocr==2.9.1",
-  "paddlepaddle==2.6.2",
+  # OCR is done by a vision LLM via OpenRouter (see app/tasks/ocr.py) — there
+  # is no local OCR engine. We intentionally do NOT install Tesseract /
+  # PaddleOCR (heavy native deps, weaker quality on photographed pages).
 
   # --- Audio I/O (Phase 4 podcast mastering + Phase 5 local TTS) ---
   "pydub==0.25.1",

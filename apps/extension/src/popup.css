@@ -1,0 +1,48 @@
+/**
+ * Popup CSS — the popup window is a constrained frame (default
+ * 360×600 in Chrome). We import the shared tokens from the
+ * `packages/ui` globals so the colors + type scale match the web app.
+ *
+ * `@readmaxxing/ui/globals.css` defines the full Tailwind v4 token
+ * system + base styles; we import it once here and rely on the
+ * utility classes for the rest. (The CSS is large enough that
+ * crxjs will fingerprint and cache it for free.)
+ */
+
+/* Chrome extension popup windows get a default UA stylesheet; reset
+   the body so the popup's frame matches our calm light/dark surface. */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 360px;
+  min-height: 480px;
+  background-color: var(--surface-canvas, #ecefe6);
+  color: var(--text-primary, #0e0f12);
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Honor `prefers-color-scheme` so the popup doesn't glare at night. */
+@media (prefers-color-scheme: dark) {
+  html,
+  body,
+  #root {
+    background-color: var(--surface-canvas, #0e0f12);
+    color: var(--text-primary, #f4f1ea);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

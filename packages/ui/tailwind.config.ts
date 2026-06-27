@@ -1,11 +1,14 @@
 import type { Config } from "tailwindcss";
 import { fontStacks } from "./src/fonts";
-import { fluidBody, measure } from "./src/tokens";
+import { radius, space } from "./src/tokens";
 
 /**
- * Tailwind theme preset for ReadMaxxing — maps tokens into Tailwind's
- * `theme.extend` so the consuming app can write `bg-surface-canvas`,
- * `text-text-primary`, etc.
+ * Tailwind theme preset for ReadMaxxing — maps M-Chef design-system
+ * tokens (DESIGN-SYSTEM.md §24.1, §24.2) into Tailwind's `theme.extend`
+ * so consumers can write `bg-canvas`, `text-coral`, `rounded-lg`, etc.
+ *
+ * Inter is the only family (no Source Serif, no Atkinson Hyperlegible).
+ * The focus ring is the coral halo from §19.2.
  */
 const config: Config = {
   content: [
@@ -34,89 +37,125 @@ const config: Config = {
           muted: "var(--text-secondary)",
           faint: "var(--text-tertiary)",
           inverse: "var(--text-inverse)",
+          "inverse-muted": "var(--text-inverse-muted)",
         },
 
+        // Brand accents — DESIGN-SYSTEM §3.4.
+        coral: {
+          bg: "#FF5C44",
+          soft: "#FFE3DC",
+          text: "#C8341B",
+          fg: "#FFFFFF",
+        },
+        butter: {
+          bg: "#F5C84C",
+          soft: "#FFEFC5",
+          text: "#6B4F00",
+          fg: "#0E0F12",
+        },
+        lavender: {
+          bg: "#B5A6FF",
+          soft: "#E4DDFF",
+          text: "#4433B5",
+          fg: "#FFFFFF",
+        },
+        mint: {
+          bg: "#7FE3B0",
+          soft: "#D6F5E5",
+          text: "#1B6B45",
+          fg: "#0E0F12",
+        },
+
+        // Legacy "accent" alias kept for backwards compat — maps to coral.
         accent: {
-          DEFAULT: "#5B4DEF",
-          soft: "rgba(91, 77, 239, 0.12)",
-          strong: "rgba(91, 77, 239, 0.28)",
-          focus: "rgba(91, 77, 239, 0.45)",
+          DEFAULT: "#FF5C44",
+          soft: "#FFE3DC",
+          text: "#C8341B",
+          focus: "rgba(255, 92, 68, 0.35)",
         },
 
         border: {
           subtle: "var(--border-subtle)",
           DEFAULT: "var(--border-default)",
           strong: "var(--border-strong)",
+          inverse: "var(--border-inverse)",
         },
 
-        success: "#1F8E4A",
+        // Semantic state colors — DESIGN-SYSTEM §3.5.
+        success: "#1F9E5A",
+        "success-soft": "#E5F6EC",
         warning: "#C97A0F",
-        danger: "#D23838",
+        "warning-soft": "#FFF1DC",
+        danger: "#D62E2E",
+        "danger-soft": "#FCE4E4",
         info: "#2A5BD7",
+        "info-soft": "#E2EAFB",
       },
       fontFamily: {
         sans: fontStacks.sans.split(", "),
-        serif: fontStacks.serif.split(", "),
-        dyslexia: fontStacks.dyslexia.split(", "),
         mono: fontStacks.mono.split(", "),
       },
       fontSize: {
         xs: ["11px", { lineHeight: "1.4", letterSpacing: "0.02em" }],
-        sm: ["13px", { lineHeight: "1.45" }],
-        base: ["16px", { lineHeight: "1.55" }],
-        md: ["18px", { lineHeight: "1.55" }],
-        lg: ["22px", { lineHeight: "1.45" }],
-        xl: ["28px", { lineHeight: "1.3" }],
-        "2xl": ["36px", { lineHeight: "1.2" }],
-        "3xl": ["48px", { lineHeight: "1.15" }],
-        display: ["72px", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
-        body: [fluidBody, { lineHeight: "1.6" }],
+        sm: ["13px", { lineHeight: "1.4" }],
+        base: ["15px", { lineHeight: "1.5" }],
+        md: ["17px", { lineHeight: "1.5" }],
+        lg: ["20px", { lineHeight: "1.3" }],
+        xl: ["28px", { lineHeight: "1.2" }],
+        "2xl": ["36px", { lineHeight: "1.15" }],
+        "3xl": ["48px", { lineHeight: "1.1" }],
+        display: ["80px", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+        mega: ["120px", { lineHeight: "1.0", letterSpacing: "-0.04em" }],
       },
       borderRadius: {
-        xs: "6px",
-        sm: "10px",
-        md: "14px",
-        lg: "20px",
-        xl: "28px",
-        full: "9999px",
+        xs: radius.xs,
+        sm: radius.sm,
+        md: radius.md,
+        lg: radius.lg,
+        xl: radius.xl,
+        "2xl": radius["2xl"],
+        full: radius.full,
       },
       spacing: {
-        0: "0",
-        1: "4px",
-        2: "8px",
-        3: "12px",
-        4: "16px",
-        5: "20px",
-        6: "24px",
-        7: "32px",
-        8: "40px",
-        9: "48px",
-        10: "64px",
-        11: "80px",
-        12: "96px",
+        0: space[0],
+        1: space[1],
+        2: space[2],
+        3: space[3],
+        4: space[4],
+        5: space[5],
+        6: space[6],
+        7: space[7],
+        8: space[8],
+        9: space[9],
+        10: space[10],
+        11: space[11],
+        12: space[12],
       },
       maxWidth: {
-        reading: measure,
+        reading: "66ch",
       },
       transitionDuration: {
         instant: "80ms",
         fast: "150ms",
         base: "220ms",
         slow: "320ms",
+        deliberate: "480ms",
         highlight: "120ms",
       },
       transitionTimingFunction: {
         out: "cubic-bezier(0.2, 0.8, 0.2, 1)",
         in: "cubic-bezier(0.6, 0, 0.8, 0.2)",
         inout: "cubic-bezier(0.4, 0, 0.2, 1)",
+        spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       boxShadow: {
-        xs: "0 1px 2px rgba(14, 14, 16, 0.04)",
-        sm: "0 2px 6px rgba(14, 14, 16, 0.06)",
-        md: "0 6px 16px rgba(14, 14, 16, 0.08)",
-        lg: "0 12px 32px rgba(14, 14, 16, 0.12)",
-        xl: "0 24px 56px rgba(14, 14, 16, 0.18)",
-        focus: "0 0 0 3px rgba(91, 77, 239, 0.45)",
+        xs: "0 1px 2px rgba(14, 15, 18, 0.04)",
+        sm: "0 2px 6px rgba(14, 15, 18, 0.06), 0 1px 2px rgba(14, 15, 18, 0.04)",
+        md: "0 6px 16px rgba(14, 15, 18, 0.08), 0 2px 4px rgba(14, 15, 18, 0.04)",
+        lg: "0 12px 32px rgba(14, 15, 18, 0.12), 0 4px 8px rgba(14, 15, 18, 0.06)",
+        xl: "0 24px 56px rgba(14, 15, 18, 0.18), 0 8px 16px rgba(14, 15, 18, 0.08)",
+        // Coral focus ring — DESIGN-SYSTEM §19.2.
+        focus: "0 0 0 3px rgba(255, 92, 68, 0.35)",
       },
       keyframes: {
         shimmer: {

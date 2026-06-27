@@ -1540,6 +1540,384 @@ For audit traceability, here is how each component in the reference boards maps 
 
 ---
 
+## 25. Visual Language v2 — Editorial-Minimal Refresh (2026-06-27)
+
+> **Status: canonical.** This section is the current visual law and **supersedes
+> earlier rules where they conflict** (noted in §25.12). It evolves the system
+> toward a *modern, sleek, editorial-minimal* aesthetic with a *technical/sci-fi*
+> edge, derived from reference imagery (gallery/audio editorial apps). The
+> foundation is unchanged — warm paper, ink, coral, Inter, generous void — this
+> raises the *craft*: type as hero, instrument-grade numerals, strict pill/circle
+> controls, hairline structure, bento layout, and disciplined depth.
+
+### 25.0 Ethos — the one paragraph
+
+**The page is a gallery wall.** Oversized type does the work; chrome disappears.
+Structure is drawn with hairlines and void, not boxes. There is exactly **one hot
+accent** (coral) per screen, used fearlessly — full-bleed when it's the moment,
+silent otherwise. Numbers and labels are **instrument-grade**: monospaced, tabular,
+tracked — they read like a HUD, not body copy. Every interactive thing is a **pill
+or a circle**. Nothing is decorative; nothing is busy. Calm, precise, confident.
+
+Three test questions for any new screen:
+1. Is the largest thing on screen the *content title* (not a button, bar, or icon)?
+2. Could I remove one more border/box and replace it with space or a hairline?
+3. Is there exactly one coral moment — and does it earn it?
+
+---
+
+### 25.1 Color system
+
+Palette is **paper + ink + one hot accent + rare editorial accents**. All accents
+ship as **CSS variables** (so themes — including e-ink — can remap them; fixes the
+prior limitation where accents were hard-coded and e-ink couldn't drop them).
+
+**Neutrals (the 95% of every screen)**
+
+| Token | Light | Role |
+|---|---|---|
+| `--canvas` | `#ECEFE6` | App background (warm paper, never `#FFF`) |
+| `--surface` | `#FFFFFF` | Cards, sheets, rows |
+| `--surface-muted` | `#F4F1EA` | Inset/secondary surface, soft icon-button fill |
+| `--ink` | `#0E0F12` | Primary text + ink fills (never `#000`) |
+| `--ink-2` | `#5C6068` | Secondary text (meta, subtitles) |
+| `--ink-3` | `#646871` | Tertiary text (hints) — **AA-safe**, replaces the old `#8E929B` |
+| `--hairline` | `rgba(14,15,18,.08)` | Structural rules + dividers (the workhorse) |
+| `--hairline-strong` | `rgba(14,15,18,.16)` | Emphasized dividers, input borders |
+
+**Coral — the primary accent (a real ramp, not one value)**
+
+| Token | Hex | Use | Contrast note |
+|---|---|---|---|
+| `--coral-050` | `#FFF1ED` | Faintest tint (hover wash) | — |
+| `--coral-100` | `#FFE3DC` | Soft fill — **active/selected row bg** | text uses `--coral-700` |
+| `--coral-500` | `#FF5C44` | **Hero fill, large** (full-bleed, big play, ≥24px text only) | white text 3.06:1 → large only |
+| `--coral-600` | `#D83A22` | **Primary CTA fill** with body-size labels | white 4.62:1 ✓ AA |
+| `--coral-700` | `#B82E18` | **Coral text/links** on warm surfaces | 5.2:1 on paper/card ✓ |
+| `--coral-900` | `#4A1B0C` | Text on coral-050/100 tints | — |
+
+Rule: **`coral-500` for big/full-bleed fills, `coral-600` for buttons with text,
+`coral-700` for text/links.** Never white-on-`coral-500` at body size.
+
+**Secondary editorial accents (the "gallery" colors — use ≤1 per screen, for
+*content tiles/illustration only*, never for a primary control)**
+
+| Token | Fill | Soft | Ink-on-fill |
+|---|---|---|---|
+| `--lime` | `#C7F03F` | `#EAF7B0` | `#34400A` |
+| `--butter` | `#F5C84C` | `#FFEFC5` | `#6B4F00` |
+| `--lavender` | `#B5A6FF` | `#E4DDFF` | `#4433B5` |
+| `--mint` | `#7FE3B0` | `#D6F5E5` | `#1B6B45` |
+
+These are the punchy "Tickets Available" lime / collage yellow moments. They tint a
+*tile*, never a button. Text on a colored fill always uses that family's ink stop
+(never black/gray).
+
+**The active-state pattern (codified).** A selected/playing list row is
+`background: var(--coral-100)` + `color: var(--coral-700)` (title) with the meta in
+`--coral-600` — the warm "peach row." This is the canonical selection treatment
+across lists, tabs, and filters. Never rely on color alone — pair with weight (700)
+or a leading marker.
+
+**Theme mapping.** `light` as above. `dark`: paper→`#0E0F12`, surface→`#18191C`,
+ink→`#F4F1EA`, coral ramp stays but text-coral lightens to ~`#FF8A75` (AA on dark).
+`sepia`: warm cream set (existing). `eink`: **all accents collapse to grayscale** —
+`--coral-600`→`#1A1A1A`, soft→`#E6E6E6`, secondary accents→neutral gray; the only
+non-gray element permitted is none. (This is why accents must be vars.)
+
+---
+
+### 25.2 Typography
+
+**Families**
+
+| Role | Family | Notes |
+|---|---|---|
+| UI + display + reading | **Inter** (variable, `font-optical-sizing: auto`) | Inter Display metrics kick in at large sizes — this is what makes titles feel "drawn," not "set." |
+| Numerals, timecodes, counts, micro-labels | **Geist Mono** (fallback `JetBrains Mono`, then `ui-monospace`) | The instrument-grade/technical voice. **New, ratifiable amendment** to the old "Inter only" rule — see §25.12. If you must stay pure-Inter, substitute Inter with `font-variant-numeric: tabular-nums` + `+0.02em` tracking. |
+
+**Scale** (fluid `clamp(min, vw, max)` for display so titles dominate on every width)
+
+| Style | Size | Weight | Tracking | Leading | Where |
+|---|---|---|---|---|---|
+| Display 0 (hero numeral/title) | `clamp(48px,12vw,80px)` | 800 | `-0.04em` | 0.95 | "47", "Content", clocks |
+| Display 1 (page title) | `clamp(34px,8vw,52px)` | 800 | `-0.035em` | 1.0 | "Your library", "Lumina Art" |
+| Display 2 (section) | `clamp(26px,6vw,38px)` | 800 | `-0.03em` | 1.05 | "Popular", "Gallery", "Novels" |
+| Title | `22–24px` | 700 | `-0.02em` | 1.12 | card/list titles |
+| Subtitle | `17–18px` | 600 | `-0.01em` | 1.3 | secondary headings |
+| Body / reading | `16–18px` | 400 | 0 | 1.5–1.6 | prose, reading column |
+| Label | `13px` | 500 | 0 | 1.4 | controls, meta |
+| **Micro-label (eyebrow)** | `11–12px` | 600 | **`+0.08em`** | 1.3 | UPPERCASE markers: "PLACE", "NEXT", "EXHIBITS", "NOW PLAYING" |
+| **Mono numeral** | inherit | 500 | `0` | — | mono + `tabular-nums`: "31 tracks", "06:52", "Total 124" |
+| **Count superscript** | `0.55em` of parent, raised | 500 | — | mono, coral or ink: "Featured¹²" |
+
+**Signature treatments**
+- **Thin giant numeral.** The hero stat/clock ("47", "06") may render at Display-0
+  size in **weight 200–300** (or mono) for the editorial thin-vs-bold contrast.
+- **Outlined numeral (optional hero).** The stroked "06" look:
+  `color: transparent; -webkit-text-stroke: 2px var(--ink);` (coral variant for the
+  active digit). Use once per screen, max.
+- **Eyebrow + title pair.** Sections lead with a micro-label eyebrow above a
+  Display-2 title (e.g. `PLACE` ▸ "Lumina Art").
+- **Weight set is fixed:** 400 / 500 / 600 / 700 / 800. No others. Body is never
+  >400; titles are never <700.
+
+Reading surface keeps its own restraint (§6): 16–18px / 1.5–1.6 / 66ch / weight 400.
+**Drama lives in titles and numerals, never in the reading column.**
+
+---
+
+### 25.3 Shape & elevation
+
+**Radius scale** (interactive = pill or circle; surfaces = soft rounds)
+
+| Token | Value | Use |
+|---|---|---|
+| `--r-pill` | `9999px` | **All text buttons, chips, tabs, search field** |
+| `--r-circle` | `50%` | **All icon-only buttons, avatars** |
+| `--r-thumb` | `12px` | List-row thumbnails, small media |
+| `--r-card` | `20px` | Standard cards (unchanged default) |
+| `--r-tile` | `24px` | Bento tiles, cover tiles |
+| `--r-sheet` | `28px` | Bottom sheets, modals, hero cards |
+| `--r-squircle` | `22px` | The large hero **play** control (optional rounded-square, per reference) |
+
+**Elevation** (define and *use* — the prior `shadow-soft` was referenced but never
+defined). Soft, low, warm-tinted shadows; never harsh.
+
+| Token | Value | Use |
+|---|---|---|
+| `--elev-0` | none | Flat on canvas |
+| `--elev-1` | `0 1px 2px rgba(14,15,18,.05)` | Resting cards/rows |
+| `--elev-2` | `0 6px 20px rgba(14,15,18,.08)` | Hover lift, now-playing card |
+| `--elev-3` | `0 16px 40px rgba(14,15,18,.12)` | Sheets, menus, dialogs |
+
+**Hairlines do the structural work.** Prefer a `--hairline` rule or pure space over
+a bordered box. Full-bleed hairline dividers separate sections (editorial). Borders
+on cards are `0.5px solid var(--hairline)`.
+
+**Gradient — one sanctioned pattern only.** A vertical `--surface → --surface-muted`
+(white→cream) wash on **now-playing / cover / hero** surfaces. Never on text, never
+on controls, never more than one per screen. (Amends the blanket "no gradient" lean.)
+
+---
+
+### 25.4 Iconography
+
+**Adopt Lucide** (`lucide-react`; `lucide-react-native` for mobile/extension →
+cross-surface parity). This replaces *all* unicode/emoji/text glyphs.
+
+- **One stroke (`1.75`), two sizes (`20` inline / `24` chrome), `currentColor`.**
+- Every icon-only button = circular `IconButton` with `aria-label`.
+- Canonical mapping: `Sun/Moon/Coffee/Contrast` (themes) · `SlidersHorizontal`
+  (filter) · `Search` · `HelpCircle` · `ArrowUpRight` (the ↗ "open") · `ArrowRight`
+  · `Play/Pause` · `Rewind/FastForward` or `RotateCcw/RotateCw` (skip) · `AudioLines`
+  (voice/waveform) · `Bookmark` · `Plus` · `Menu` · `X` · `EyeOff` (locked/premium)
+  · `Sparkles` (bionic) · `ScanEye` (focus) · `Ruler` (reading guide) · `Keyboard`
+  (shortcuts) · `Hexagon`/`Settings2` (settings).
+
+Never hand-draw icon paths; never mix two icon libraries.
+
+---
+
+### 25.5 Buttons — the complete system
+
+**Two shapes only: pill (text) and circle (icon).** One height per size; consistent
+focus ring (coral 3px), `active:scale(.97)`, `transition` on the motion tokens.
+
+**`Button` (pill, `--r-pill`)**
+
+| Variant | Rest | Text | Use |
+|---|---|---|---|
+| `primary` | `--coral-600` | white | the **one** hero CTA per screen |
+| `inverse` | `--ink` | `--surface` | contextual primary on busy/coral/photo ("Pause", "Menu", "Play") |
+| `secondary` | `--surface` + `0.5px --hairline` | `--ink` | secondary actions ("Top 10", "Scan an image") |
+| `ghost` | transparent | `--ink` | tertiary/inline; hover = `--coral-050` |
+
+Sizes: `sm 36px` / `md 44px` / `lg 52px` height; horizontal padding `16/20/24`; label
+`13/15/16px` weight 500. Hover = base accent darkened ~6% (derive, **never** a
+hardcoded hex — removes the old `#E54E37`/`#B82626`). Disabled = 38% opacity, no
+shadow. Loading = leading 16px spinner + label stays (never a bare spinner).
+
+**`IconButton` (circle, `--r-circle`)** — sizes `36 / 44 / 56`; icon `20 / 20 / 24`.
+
+| Variant | Fill | Use |
+|---|---|---|
+| `surface` | `--surface-muted` | default tool (the reference's gray filter button) |
+| `ghost` | transparent → hover `--coral-050` | quiet tools |
+| `inverse` | `--ink` | on coral/photo |
+| `coral` | `--coral-600` | a featured icon action |
+
+**Hero play control.** Large `64–72px` — either a **coral circle** (`--coral-600`,
+white `Play/Pause`) or a **coral squircle** (`--r-squircle`, per the reference). One
+per player. Skips = `44px` `ghost`/`surface` circles. **Never a rounded-rectangle.**
+
+This kills the current inconsistency: today buttons span `rounded-md` squares + pills
++ bespoke coral fills at `h-10/12/14/16`. v2 = pill + circle, three heights, four
+variants. Nothing else.
+
+---
+
+### 25.6 Cards, tiles & lists
+
+**Editorial list row** (reference set 2: "Timeless Threads · 31 tracks")
+- `thumb` (`--r-thumb`, 56px, cover/gradient) · title (Title, 700) · meta right
+  (mono, `--ink-2`: "31 tracks") · full-row hairline-bottom, no box.
+- **Active/playing row:** `--coral-100` bg, `--coral-700` title, `--coral-600` meta
+  (the peach row). 64px row height, 12px gap, 20–24px side padding.
+
+**Bento tile** (reference set 1: the "Content" mosaic)
+- `--r-tile`, cover or gradient or solid; **Display-2 title (800)**, `ArrowUpRight`
+  top-right as the "open" affordance, optional source pill bottom-left.
+- Variants: **featured** (spans 2 cols, big cover + progress), **standard**, **coral
+  feature** (`--coral-500` fill, white title — one per grid), **image tile** (full-
+  bleed cover), **stat tile** (§25.7).
+- Mosaic rhythm: alternate tall/short, never a uniform grid; gaps `12–16px`.
+
+**Now-playing card** (reference: "Episode 6" / "Patrick Goodwin")
+- `--r-sheet`, `--surface → --surface-muted` gradient, `--elev-2`. Avatar + name +
+  role (mono micro-label), `ArrowUpRight` circle top-right, Title (700), **equalizer**
+  (§25.8) right, `inverse` pill ("Pause") bottom-left, `Bookmark` circle bottom-right.
+
+**Stat / metric tile** (reference: "47 new materials", "564 Exhibits", "Total 124")
+- Micro-label (mono, uppercase) + **giant numeral** (Display-0, thin or mono) +
+  optional delta chip. `--surface-muted` or coral fill; `--r-tile`; no border.
+
+**Cover art (fixes "text-only / incomplete").** Documents have no covers — **generate
+a deterministic cover per `docId`**: a 2–3 stop gradient mesh keyed by a hash of the
+id, biased to coral/ink, with an optional grain/contour overlay; fetch OG images for
+URL imports. This single change removes the "spreadsheet" feel from the library.
+
+Cards rest at `--elev-1`, lift to `--elev-2` on hover with a `transform: translateY(-2px)`
+(motion tokens). Radius is `--r-card`/`--r-tile`; modals `--r-sheet`. Never `rounded-xl`
+one-offs (the prior CommandPalette/KeyboardShortcuts drift to 28px → normalize).
+
+---
+
+### 25.7 Layout & grid
+
+- **Base unit 4px.** Phone side margin `20–24px`; gutters `12–16px`. Mental grid:
+  4-col phone, 8-col tablet, 12-col desktop.
+- **Page header pattern:** big Display-1 title flush-left, a single circular
+  `IconButton` (filter/settings) flush-right, optional avatar+role left. Generous top
+  margin (`28–40px`) before the title — let it breathe.
+- **Section rhythm:** `eyebrow micro-label` → Display-2 title with **right-aligned
+  "Total NN" mono meta** → content → full-bleed hairline. (Reference: "Popular …
+  Total 06", "Gallery … Total 124".)
+- **Bento composition:** lead with one **featured** tile, then an asymmetric mosaic;
+  insert exactly one coral-feature tile and ≥1 cover tile so it's never all-text.
+- **Segmented category nav** (top): tabs with **count superscripts** ("Featured¹²"),
+  **active = coral + 700**, **inactive = ghosted (`opacity:.35`)**; horizontal scroll,
+  no scrollbar, snap. (Reference: "Featured¹² Popular⁶ Just arrived⁴".)
+- **Sticky mini-player** docks bottom with the now-playing summary; expands to the
+  full player. Never floats over content un-anchored (fixes the prior floating-toast
+  collision).
+- **≤7 items per chunk** with "Load more" still holds (§ Miller's law).
+
+---
+
+### 25.8 Signature elements & patterns
+
+- **Count badge / superscript.** Mono, `0.55em`, raised; coral on active, `--ink-3`
+  otherwise. On tabs ("Featured¹²") and filter pills ("All · 12").
+- **Avatar stack.** Overlapping 28–32px circles with `-8px` margin + "+8650 people"
+  in mono micro-label. White ring (`2px var(--surface)`) between avatars.
+- **Waveform scrubber** (primary audio control). Vertical bars: **played =
+  `--ink`**, **upcoming = `--ink` @ 24%**, **playhead = `--coral-500`** with a mono
+  timecode bubble ("06:21") above it. Tap/drag to seek; bars animate subtly while
+  playing. Buffered = `--ink @ 12%`. Replaces the 4px native range input.
+- **Equalizer** (now-playing affordance). 4–6 coral bars animating off audio level;
+  pure decoration of state — `aria-hidden`, frozen under reduced-motion.
+- **Search field.** Pill, `--surface-muted`; leading **circular** `Search` icon
+  button; placeholder in `--ink-3` ("Find what you love").
+- **Source/type tag.** Small pill, soft accent fill + ink-on-fill (one Chip recipe —
+  unify the current DocCard vs Chip divergence).
+- **Progress.** Two forms: (a) **coral ring** (reuse `StreakRing` arc) on cards/avatars;
+  (b) thin `--coral-500` rail + draggable dot in the player. Always paired with a mono
+  "X% · Y min left".
+- **Empty / locked state.** Centered line icon (`EyeOff` for premium-locked) + one
+  honest line + one `secondary` pill. Aspirational, never blank, never a dead end.
+- **Status / "now" markers.** Mono uppercase micro-label ("NOW PLAYING", "NEXT",
+  "PLAYING…") — the technical voice. Never sentence-case for these markers.
+
+---
+
+### 25.9 Motion
+
+Reuse the motion tokens (`duration` 80–480ms, `easing.out/spring`). Specifics:
+- Press: `scale(.97)`, `duration.instant`. Hover lift: `translateY(-2px)` + `--elev-2`,
+  `duration.fast ease-out`.
+- Karaoke word: color/bg only, `duration.highlight` (120ms) — **never font-weight**
+  (avoids reflow).
+- Waveform/equalizer: continuous, `aria-hidden`; **frozen under `prefers-reduced-motion`**
+  (JS rAF must check `matchMedia`, not just CSS).
+- Tile/list enter: 8px rise + fade, staggered ≤60ms, capped.
+- Theme/page transitions: cross-fade `duration.base`. No layout-shifting transitions
+  (transform/opacity only).
+
+---
+
+### 25.10 Token additions (drop-in)
+
+```css
+:root {
+  /* coral ramp */
+  --coral-050:#FFF1ED; --coral-100:#FFE3DC; --coral-500:#FF5C44;
+  --coral-600:#D83A22; --coral-700:#B82E18; --coral-900:#4A1B0C;
+  /* editorial accents */
+  --lime:#C7F03F; --lime-soft:#EAF7B0; --lime-ink:#34400A;
+  /* text */
+  --ink:#0E0F12; --ink-2:#5C6068; --ink-3:#646871;
+  --hairline:rgba(14,15,18,.08); --hairline-strong:rgba(14,15,18,.16);
+  /* radius */
+  --r-thumb:12px; --r-card:20px; --r-tile:24px; --r-sheet:28px; --r-squircle:22px;
+  --r-pill:9999px;
+  /* elevation */
+  --elev-1:0 1px 2px rgba(14,15,18,.05);
+  --elev-2:0 6px 20px rgba(14,15,18,.08);
+  --elev-3:0 16px 40px rgba(14,15,18,.12);
+  /* type */
+  --font-mono:"Geist Mono","JetBrains Mono",ui-monospace,monospace;
+}
+```
+Tailwind: extend `colors.coral.{50,100,500,600,700,900}`, `colors.lime.*`,
+`boxShadow.{elev1,elev2,elev3}` (+ alias `soft`→elev2), `borderRadius.{thumb,tile,sheet,squircle}`,
+`fontFamily.mono`, `fontWeight` allow 800. Point all accent colors at the CSS vars
+(so themes/eink can remap).
+
+---
+
+### 25.11 v2 acceptance checklist (per screen)
+
+- [ ] Largest element is a content **title** (Display), not chrome.
+- [ ] Exactly **one coral moment**; secondary accent (if any) ≤1, on a tile not a control.
+- [ ] Every button is a **pill**; every icon button is a **circle**; one height per context.
+- [ ] **Zero** unicode/emoji/text-glyph icons — Lucide only, one stroke.
+- [ ] Numerals/timecodes/counts are **mono + tabular**; section meta is "Total NN".
+- [ ] Sections lead with an **eyebrow micro-label**; dividers are hairlines, not boxes.
+- [ ] Cards carry **cover art** (no all-text grids); active row uses the peach pattern.
+- [ ] Reading column untouched: 16–18px / 1.5–1.6 / 66ch / weight 400.
+- [ ] Elevation from the scale; one sanctioned gradient max; focus ring traces the shape.
+- [ ] Contrast: body 4.5:1, coral text via `--coral-700`, CTA fill `--coral-600`.
+
+---
+
+### 25.12 What this amends (reconciliation)
+
+| Earlier rule | v2 |
+|---|---|
+| "Inter is the only family" | Inter stays for all text/display; **add a mono** (`--font-mono`) for figures/timecodes/counts/micro-labels only. *(Ratify as a new D-decision.)* |
+| Weights implied minimal | Fixed set **400/500/600/700/800**; 800 reserved for Display. |
+| Accents hard-coded hex | Accents are **CSS variables** so themes (esp. e-ink) can remap; e-ink drops all accents to grayscale. |
+| Coral as a single value | Coral is a **ramp**; `500` big fills, `600` CTAs, `700` text. |
+| "No gradient" lean | **One** sanctioned surface→muted gradient on hero/now-playing/cover surfaces. |
+| `shadow-soft` (undefined) | Replaced by the **`--elev-1/2/3`** scale (alias `soft`→`elev-2`). |
+| One bright + two pastel accents | One **coral** (always) + **≤1 editorial accent** per screen, on tiles only. |
+| Card radius 20px default | Unchanged; tiles `24`, sheets `28`, thumbs `12` — codified. |
+
+Everything else in §1–§24 stands. When §25 and an earlier section conflict, §25 wins.
+
+---
+
 **End of design system document.**
 
 > When in conflict, this document wins. When new components are introduced, add them to §11 first with their variants and tokens, then build.

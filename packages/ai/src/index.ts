@@ -358,8 +358,56 @@ export async function completeJson<T = unknown>(req: AiCompletionRequest): Promi
 const CITE_RULE = `
 Every factual claim must cite the source segment using a citation tag of the
 form [cite:paragraphIndex:sentenceIndex] (zero-indexed). If a claim is not
-supported by the source, omit it. Never invent citations.
+supported by the source, omit it. Never invent citations. Output MUST contain
+at least one [cite:p:s] tag per non-trivial claim; "common knowledge" still
+needs a citation in this app — trust > fluency (UI-UX.md §7).
 `.trim();
+
+/** Regex matching a single citation tag emitted by the model. */
+export const CITE_RE = /\[cite:(\d+):(\d+)\]/g;
+
+/** Count citation tags in a model response (text or parsed JSON string field). */
+export function countCitations(text: string): number {
+  if (!text) return 0;
+  return (text.match(CITE_RE) ?? []).length;
+}
+
+/**
+ * Validate that a model response contains citations. Returns a structured
+ * result so callers can decide whether to render, retry, or surface an
+ * `ai.citation_missing` event. Non-fatal — empty is allowed for small talk
+ * ("hi") but a warning is emitted when prose > 40 chars has no citations.
+ */
+export interface CitationValidation {
+  ok: boolean;
+  count: number;
+  anchors: Array<{ paragraphIndex: number; sentenceIndex: number }>;
+  /** Prose length (text without citation tags and whitespace). */
+  proseLength: number;
+  /** True if the prose looks substantive (>40 chars) but had zero citations. */
+  missing: boolean;
+}
+
+export function validateCitations(text: string): CitationValidation {
+  if (!text) {
+    return { ok: true, count: 0, anchors: [], proseLength: 0, missing: false };
+  }
+  const matches = [...text.matchAll(new RegExp(CITE_RE.source, "g"))];
+  const anchors = matches.map((m) => ({
+    paragraphIndex: Number(m[1]),
+    sentenceIndex: Number(m[2]),
+  }));
+  const prose = text.replace(CITE_RE, "").replace(/\s+/g, " ").trim();
+  const count = anchors.length;
+  const missing = prose.length > 40 && count === 0;
+  return {
+    ok: !missing,
+    count,
+    anchors,
+    proseLength: prose.length,
+    missing,
+  };
+}
 
 /** Build a layered summary prompt (TL;DR → bullets → detailed). */
 export function buildSummaryPrompt(args: {
@@ -382,7 +430,11 @@ export function buildSummaryPrompt(args: {
 export function buildQuizPrompt(args: {
   documentText: string;
   questionCount?: number;
-}): { system: string; prompt: string; jsonSchema: Record<string, unknown> } {
+}): {
+  system: string;
+  prompt: string;
+  jsonSchema: { name: string; schema: Record<string, unknown>; strict: true };
+} {
   const n = args.questionCount ?? 5;
   return {
     system:
@@ -450,12 +502,21 @@ export function buildRecapPrompt(args: {
 export function buildAskPrompt(args: {
   documentText: string;
   question: string;
+  /**
+   * Optional full system-prompt override — used by the podcast "talk with
+   * the hosts" endpoint so we can re-frame the assistant as one of the
+   * hosts without losing the citation rule. When provided, this string
+   * is used as the system prompt verbatim; the citation rule is appended.
+   */
+  systemOverride?: string;
 }): { system: string; prompt: string } {
-  return {
-    system:
-      `You answer questions about a single document. You may only use facts ` +
+  const baseSystem = args.systemOverride
+    ? args.systemOverride
+    : `You answer questions about a single document. You may only use facts ` +
       `present in the source. If the source does not contain the answer, say ` +
-      `"The document does not address that." Never invent.\n${CITE_RULE}`,
+      `"The document does not address that." Never invent.`;
+  return {
+    system: `${baseSystem}\n${CITE_RULE}`,
     prompt:
       `QUESTION: ${args.question}\n\n` +
       `SOURCE DOCUMENT:\n---\n${args.documentText}\n---\n\nAnswer the question.`,
@@ -465,13 +526,17 @@ export function buildAskPrompt(args: {
 /** Build a filler-detection prompt (UI-UX.md §7 — "Skip filler content"). */
 export function buildFillerPrompt(args: {
   documentText: string;
-}): { system: string; prompt: string; jsonSchema: Record<string, unknown> } {
+}): {
+  system: string;
+  prompt: string;
+  jsonSchema: { name: string; schema: Record<string, unknown>; strict: true };
+} {
   return {
     system:
       `You identify low-information "filler" sentences (transitions, ` +
       `re-statements, throat-clearing) that a reader/listener could safely ` +
       `skip without losing meaning. Output is a list of paragraphIndex/` +
-      `sentenceIndex pairs that are skippable.`,
+      `sentenceIndex pairs that are skippable.\n${CITE_RULE}`,
     prompt:
       `SOURCE DOCUMENT:\n---\n${args.documentText}\n---\n\n` +
       `Return the list of skippable sentence anchors.`,
@@ -500,4 +565,158 @@ export function buildFillerPrompt(args: {
       },
     },
   };
+}
+
+// =============================================================================
+// Response parsers — turn raw model output into the route contract shapes.
+// =============================================================================
+
+export interface ParsedSummary {
+  tldr: string;
+  bullets: string[];
+  detailed: string;
+  citations: Array<{ paragraphIndex: number; sentenceIndex: number }>;
+}
+
+/**
+ * Parse the layered summary text into `{ tldr, bullets, detailed }`.
+ *
+ * The model is told to emit three sections headed "TL;DR", "Key points", and
+ * "Detailed" — but providers occasionally drift. This parser is permissive:
+ * if a section is missing it falls back to an empty string, and citation
+ * tags from any section are aggregated.
+ */
+export function parseSummary(text: string): ParsedSummary {
+  if (!text) return { tldr: "", bullets: [], detailed: "", citations: [] };
+  const stripped = text
+    .replace(/^```(?:markdown|md|text)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  const sections: Record<"tldr" | "bullets" | "detailed", string> = {
+    tldr: "",
+    bullets: "",
+    detailed: "",
+  };
+
+  const tldrMatch = stripped.match(
+    /(?:^|\n)\s*(?:#{1,6}\s*)?(?:TL;?DR|TLDR|One[- ]liner|Headline)\s*[:\-]?\s*([\s\S]*?)(?=\n\s*(?:#{1,6}\s*)?(?:Key\s*points?|Bullets?|Highlights?|Detailed|Summary|Long)\b|$)/i,
+  );
+  if (tldrMatch) sections.tldr = tldrMatch[1]!.trim();
+
+  const bulletsMatch = stripped.match(
+    /(?:^|\n)\s*(?:#{1,6}\s*)?(?:Key\s*points?|Bullets?|Highlights?)\s*[:\-]?\s*([\s\S]*?)(?=\n\s*(?:#{1,6}\s*)?(?:Detailed|Long|More|Full)\b|$)/i,
+  );
+  if (bulletsMatch) sections.bullets = bulletsMatch[1]!.trim();
+
+  const detailedMatch = stripped.match(
+    /(?:^|\n)\s*(?:#{1,6}\s*)?(?:Detailed|Long|Summary|Full|More)\s*[:\-]?\s*([\s\S]*?)$/i,
+  );
+  if (detailedMatch) sections.detailed = detailedMatch[1]!.trim();
+
+  if (!sections.tldr && !sections.bullets && !sections.detailed) {
+    sections.tldr = stripped;
+  }
+
+  const bullets = sections.bullets
+    .split(/\n\s*[-*•]\s+|\n\s*\d+\.\s+|(?:^|\s)[-*•]\s+|(?:^|\s)\d+\.\s+/g)
+    .map((b) => b.replace(/\s+/g, " ").trim())
+    .filter((b) => b.length > 0);
+
+  const citations = [...stripped.matchAll(new RegExp(CITE_RE.source, "g"))].map(
+    (m) => ({ paragraphIndex: Number(m[1]), sentenceIndex: Number(m[2]) }),
+  );
+
+  return {
+    tldr: collapseWhitespace(sections.tldr),
+    bullets: bullets.map(collapseWhitespace),
+    detailed: collapseWhitespace(sections.detailed),
+    citations,
+  };
+}
+
+function collapseWhitespace(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+export interface ParsedFiller {
+  paragraphIndex: number;
+  sentenceIndex: number;
+  reason: string;
+}
+
+/** Validate + normalize a filler-detection result. Drops invalid anchors. */
+export function parseFillerResult(parsed: unknown): ParsedFiller[] {
+  if (!parsed || typeof parsed !== "object") return [];
+  const fillers = (parsed as { fillers?: unknown }).fillers;
+  if (!Array.isArray(fillers)) return [];
+  const out: ParsedFiller[] = [];
+  for (const f of fillers) {
+    if (!f || typeof f !== "object") continue;
+    const o = f as Record<string, unknown>;
+    if (
+      typeof o["paragraphIndex"] === "number" &&
+      typeof o["sentenceIndex"] === "number" &&
+      typeof o["reason"] === "string"
+    ) {
+      out.push({
+        paragraphIndex: o["paragraphIndex"],
+        sentenceIndex: o["sentenceIndex"],
+        reason: o["reason"],
+      });
+    }
+  }
+  return out;
+}
+
+export interface ParsedQuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  sourceParagraph: number;
+}
+
+export interface ParsedQuiz {
+  questions: ParsedQuizQuestion[];
+}
+
+/**
+ * Map the prompt-helper's quiz JSON shape (`{ prompt, choices, answerIndex, citation }`)
+ * to the BFF route contract (`{ question, options, correctIndex, explanation, sourceParagraph }`).
+ * The model is told to put a one-sentence reason into the `citation` field; we
+ * split that into the `explanation` (text before any `[cite:p:s]` tag) and
+ * the `sourceParagraph` (the first `p` we find).
+ */
+export function parseQuiz(parsed: unknown): ParsedQuiz {
+  if (!parsed || typeof parsed !== "object") return { questions: [] };
+  const raw = (parsed as { questions?: unknown }).questions;
+  if (!Array.isArray(raw)) return { questions: [] };
+  const out: ParsedQuizQuestion[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const prompt = typeof o["prompt"] === "string" ? o["prompt"] : "";
+    const choicesRaw = o["choices"];
+    const options = Array.isArray(choicesRaw)
+      ? choicesRaw.filter((c): c is string => typeof c === "string")
+      : [];
+    const answerIndex = typeof o["answerIndex"] === "number" ? o["answerIndex"] : 0;
+    const citationText = typeof o["citation"] === "string" ? o["citation"] : "";
+
+    const citeMatch = citationText.match(/\[cite:(\d+):\d+\]/);
+    const sourceParagraph = citeMatch ? Number(citeMatch[1]) : -1;
+    const explanation = citationText.replace(CITE_RE, "").replace(/\s+/g, " ").trim();
+
+    if (prompt && options.length === 4 && answerIndex >= 0 && answerIndex < 4) {
+      out.push({
+        question: prompt,
+        options,
+        correctIndex: answerIndex,
+        explanation,
+        sourceParagraph,
+      });
+    }
+  }
+  return { questions: out };
 }

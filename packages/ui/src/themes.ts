@@ -1,12 +1,16 @@
 /**
- * Theme presets — Light (warm paper), Dark (true dark), Sepia, E-ink.
+ * Theme presets — light / dark / sepia / eink.
  *
- * Per UI-UX.md §3.1:
- * - Light surface: warm off-white `#FBFBF8`, not pure white.
- * - Dark surface: true-dark `#0E0E10`, not `#000`.
- * - Text on dark: low-glare `#E6E6E0`.
- * - Sepia / E-ink for long-form / evening.
- * - Contrast: WCAG 2.2 AA body (4.5:1), AAA on the reading surface (7:1).
+ * Per DESIGN-SYSTEM.md §3.1 + §24.1:
+ * - Light surface: warm off-white `#ECEFE6`, never pure white.
+ * - Dark surface: true-dark `#0E0F12`, never `#000`.
+ * - Sepia: warm cream long-form reading surface.
+ * - E-ink: low-stimulation grayscale for long reading sessions
+ *   (no accents, full surface palette only — calms the eye when
+ *   reading for hours).
+ *
+ * Contrast: WCAG 2.2 AA body (4.5:1), AAA on the reading surface (7:1).
+ * Coral focus ring is constant across all themes (DESIGN-SYSTEM §19.2).
  */
 
 export type ThemeName = "light" | "dark" | "sepia" | "eink";
@@ -33,6 +37,8 @@ export interface ThemeTokens {
   textTertiary: string;
   /** Inverse text (used on dark sections). */
   textInverse: string;
+  /** Inverse-muted text. */
+  textInverseMuted: string;
 
   /** Hairline border on cards. */
   borderSubtle: string;
@@ -40,50 +46,59 @@ export interface ThemeTokens {
   borderDefault: string;
   /** Emphasized border. */
   borderStrong: string;
+  /** Border used on dark surfaces. */
+  borderInverse: string;
 
   /** Hover tint background (for ghost buttons / rows). */
   hoverTint: string;
 }
 
 export const themes: Record<ThemeName, ThemeTokens> = {
+  // Light — the default. Warm off-white canvas, white cards.
   light: {
-    surfaceCanvas: "#FBFBF8",
+    surfaceCanvas: "#ECEFE6",
     surfaceCard: "#FFFFFF",
-    surfaceMuted: "#F4F1E9",
+    surfaceMuted: "#F4F1EA",
     surfaceElevated: "#FFFFFF",
-    surfaceInverse: "#0E0E10",
-    surfaceOverlay: "rgba(14, 14, 16, 0.55)",
+    surfaceInverse: "#0E0F12",
+    surfaceOverlay: "rgba(14, 15, 18, 0.55)",
 
-    textPrimary: "#1A1A1F",
-    textSecondary: "#5A5A63",
-    textTertiary: "#8A8A92",
-    textInverse: "#E6E6E0",
+    textPrimary: "#0E0F12",
+    textSecondary: "#5C6068",
+    textTertiary: "#8E929B",
+    textInverse: "#F4F1EA",
+    textInverseMuted: "#B5B8BF",
 
-    borderSubtle: "rgba(14, 14, 16, 0.06)",
-    borderDefault: "rgba(14, 14, 16, 0.12)",
-    borderStrong: "rgba(14, 14, 16, 0.22)",
+    borderSubtle: "rgba(14, 15, 18, 0.06)",
+    borderDefault: "rgba(14, 15, 18, 0.10)",
+    borderStrong: "rgba(14, 15, 18, 0.18)",
+    borderInverse: "rgba(255, 255, 255, 0.10)",
 
-    hoverTint: "rgba(14, 14, 16, 0.04)",
+    hoverTint: "rgba(14, 15, 18, 0.04)",
   },
+  // Dark — true dark, not OLED black. Low-glare text.
   dark: {
-    surfaceCanvas: "#0E0E10",
-    surfaceCard: "#161618",
-    surfaceMuted: "#1E1E22",
-    surfaceElevated: "#22222A",
-    surfaceInverse: "#FBFBF8",
+    surfaceCanvas: "#0E0F12",
+    surfaceCard: "#18191C",
+    surfaceMuted: "#222428",
+    surfaceElevated: "#25272B",
+    surfaceInverse: "#F4F1EA",
     surfaceOverlay: "rgba(0, 0, 0, 0.65)",
 
-    textPrimary: "#E6E6E0",
-    textSecondary: "#A8A8B0",
-    textTertiary: "#6F6F78",
-    textInverse: "#1A1A1F",
+    textPrimary: "#F4F1EA",
+    textSecondary: "#B5B8BF",
+    textTertiary: "#7A7E87",
+    textInverse: "#0E0F12",
+    textInverseMuted: "#5C6068",
 
     borderSubtle: "rgba(255, 255, 255, 0.06)",
-    borderDefault: "rgba(255, 255, 255, 0.12)",
-    borderStrong: "rgba(255, 255, 255, 0.22)",
+    borderDefault: "rgba(255, 255, 255, 0.10)",
+    borderStrong: "rgba(255, 255, 255, 0.18)",
+    borderInverse: "rgba(14, 15, 18, 0.10)",
 
     hoverTint: "rgba(255, 255, 255, 0.05)",
   },
+  // Sepia — warm cream long-form reading surface.
   sepia: {
     surfaceCanvas: "#F4ECD8",
     surfaceCard: "#FAF3E2",
@@ -96,13 +111,17 @@ export const themes: Record<ThemeName, ThemeTokens> = {
     textSecondary: "#6B5A40",
     textTertiary: "#9A8866",
     textInverse: "#F4ECD8",
+    textInverseMuted: "#B8A57E",
 
     borderSubtle: "rgba(59, 46, 26, 0.08)",
     borderDefault: "rgba(59, 46, 26, 0.16)",
     borderStrong: "rgba(59, 46, 26, 0.28)",
+    borderInverse: "rgba(244, 236, 216, 0.10)",
 
     hoverTint: "rgba(59, 46, 26, 0.05)",
   },
+  // E-ink — pure grayscale, low stimulation. No accents.
+  // Canvas is paper-white; cards are pure white with darker hairlines.
   eink: {
     surfaceCanvas: "#F2F2F2",
     surfaceCard: "#FFFFFF",
@@ -115,19 +134,31 @@ export const themes: Record<ThemeName, ThemeTokens> = {
     textSecondary: "#3A3A3A",
     textTertiary: "#6A6A6A",
     textInverse: "#FFFFFF",
+    textInverseMuted: "#B5B5B5",
 
     borderSubtle: "rgba(0, 0, 0, 0.12)",
     borderDefault: "rgba(0, 0, 0, 0.24)",
     borderStrong: "rgba(0, 0, 0, 0.40)",
+    borderInverse: "rgba(255, 255, 255, 0.10)",
 
     hoverTint: "rgba(0, 0, 0, 0.06)",
   },
 };
 
 /**
+ * Resolve the initial theme name from a server-side cookie value.
+ * Lives in this pure (non-"use client") module so `app/layout.tsx` can
+ * call it during SSR to set `[data-theme]` and the matching CSS
+ * variables before hydration.
+ */
+export function initialThemeFromCookie(cookie: string | undefined): ThemeName {
+  if (!cookie) return "light";
+  return (cookie in themes ? cookie : "light") as ThemeName;
+}
+
+/**
  * Serialize theme tokens as CSS custom properties on `[data-theme=...]`.
- * This keeps the design system portable across React/web/extension without
- * needing a build-time CSS-in-JS dependency.
+ * Kept in this pure module so it can run during SSR.
  */
 export function themeCssVars(theme: ThemeTokens): Record<string, string> {
   return {
@@ -142,10 +173,12 @@ export function themeCssVars(theme: ThemeTokens): Record<string, string> {
     "--text-secondary": theme.textSecondary,
     "--text-tertiary": theme.textTertiary,
     "--text-inverse": theme.textInverse,
+    "--text-inverse-muted": theme.textInverseMuted,
 
     "--border-subtle": theme.borderSubtle,
     "--border-default": theme.borderDefault,
     "--border-strong": theme.borderStrong,
+    "--border-inverse": theme.borderInverse,
 
     "--hover-tint": theme.hoverTint,
   };

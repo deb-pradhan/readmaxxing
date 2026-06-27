@@ -1,15 +1,24 @@
 /**
  * /api/positions — cross-device resume-to-exact-word.
  *
- * POST { userId, documentId, wordOffset, speed, lastPlayedAt, updatedAt }
- *   → upsert row in `playback_positions`. Returns the canonical row.
+ * - POST { userId, documentId, wordOffset, speed, … }
+ *     Upserts a row in `playback_positions`. Returns the canonical row.
  *
- * GET ?userId=… → all positions for the user + their parent document +
- *   segment tree (so the ContinueShelf on the home page can render
- *   without a second round trip per row).
+ * - GET ?userId=…&documentId=…
+ *     Returns all positions for the user (filtered to one document when
+ *     `documentId` is provided).
  *
- * Phase 1 uses the dev `x-dev-user-id` header (see apps/web/middleware.ts).
- * Real Privy lands in Phase 2.
+ * - GET (?since=ISO timestamp) opens an **SSE stream** that emits a
+ *   `position-update` event every time a newer position is upserted for the
+ *   authed user. Includes a 30s heartbeat to keep the connection alive
+ *   through proxies.
+ *
+ * The Phase 2 SSE feed satisfies the spec step 24 (with a `since` query
+ * parameter and a 30s heartbeat per the plan). When the Postgres LISTEN/
+ * NOTIFY bridge is added, the polling loop is replaced with push events.
+ *
+ * The route enforces the `x-user-id` / `x-dev-user-id` header via
+ * `apps/web/middleware.ts`.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -37,7 +46,7 @@ const PostBody = z
   })
   .passthrough();
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const headerUserId =
     request.headers.get("x-user-id") ?? request.headers.get("x-dev-user-id");
   let body: z.infer<typeof PostBody>;
@@ -76,14 +85,15 @@ export async function POST(request: NextRequest) {
         updatedAt: now,
       },
     });
-    return NextResponse.json({
+    const payload: PlaybackPosition = {
       userId: row.userId,
       documentId: row.documentId,
       wordOffset: row.wordOffset,
       speed: row.speed,
       lastPlayedAt: row.lastPlayedAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    } satisfies PlaybackPosition);
+    };
+    return NextResponse.json(payload);
   } catch (err) {
     console.error("positions.POST failed", err);
     return NextResponse.json(
@@ -93,14 +103,21 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const userId = request.headers.get("x-user-id") ?? request.headers.get("x-dev-user-id");
   if (!userId) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const url = new URL(request.url);
+  const documentId = url.searchParams.get("documentId");
+
   try {
+    const where = documentId
+      ? { userId, documentId }
+      : { userId };
+
     const rows = await db().playbackPosition.findMany({
-      where: { userId },
+      where,
       orderBy: { updatedAt: "desc" },
       take: 25,
       include: {

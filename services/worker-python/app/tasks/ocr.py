@@ -1,78 +1,88 @@
-"""OCR tasks — extract text from scanned images and PDFs.
+"""OCR tasks — extract text from scanned images via a vision LLM.
 
-Phase 5 (Voice Typing, Voice Cloning, OCR) wires PaddleOCR as the primary
-engine with Tesseract as a fast fallback. The Phase 1 scaffold keeps both
-adapters behind a thin interface so the calling code (Celery task + FastAPI
-endpoint) doesn't need to know which engine produced the text.
+OCR is performed by a vision-capable model through the OpenRouter gateway
+(`app.tasks.openrouter.complete_vision`) — the same single LLM gateway the
+rest of the worker uses. There is no local OCR engine (Tesseract / PaddleOCR
+were removed): a vision model gives better quality on photographed and
+multi-column pages with zero native dependencies.
+
+To keep the "trust > fluency" contract (UI-UX.md §7) the model is told to
+transcribe verbatim, never summarize/translate, and mark unreadable text as
+`[illegible]`. It self-reports a confidence (0–1) and whether any region was
+illegible; we map those onto the existing low-confidence contract so the BFF
+and reader behave exactly as before.
+
+Contract (unchanged for the BFF):
+  ocr_image(image_base64, document_id, language="eng")
+  → {
+      document_id: str,
+      text: str,
+      engine: str,                # "vision:<model>"
+      language: str,
+      page_count: int,            # always 1 for a single image
+      median_confidence: float,   # 0.0–1.0
+      low_confidence: bool,       # True if confidence < 0.7 OR illegible
+      confidence_per_page: [float, ...],
+      duration_ms: int,
+    }
 """
 
 from __future__ import annotations
 
 import base64
-import io
+import json
 import logging
-from typing import Protocol
+import time
 
 from celery import shared_task
 
+from .openrouter import complete_vision
+
 logger = logging.getLogger("readmaxxing.ocr")
 
+# Thresholds (TESTING.md §9 — log when confidence is low on a page).
+LOW_CONFIDENCE_THRESHOLD = 0.7  # flagged in the response
+WARN_CONFIDENCE_THRESHOLD = 0.6  # logged as a warning
 
-class OcrEngine(Protocol):
-    """Minimal OCR-engine contract."""
+OCR_SCHEMA = {
+    "name": "ocr_result",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "text": {"type": "string"},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "has_illegible": {"type": "boolean"},
+        },
+        "required": ["text", "confidence", "has_illegible"],
+    },
+}
 
-    def image_to_text(self, image_bytes: bytes, *, language: str = "eng") -> str:
-        ...
-
-
-class TesseractEngine:
-    """Tesseract via `pytesseract`. Lightweight, CPU-only."""
-
-    def __init__(self) -> None:
-        import pytesseract  # local import — heavy at import-time
-        from PIL import Image  # noqa: F401  (Pillow image handling)
-
-        self._pytesseract = pytesseract
-
-    def image_to_text(self, image_bytes: bytes, *, language: str = "eng") -> str:
-        from PIL import Image
-
-        image = Image.open(io.BytesIO(image_bytes))
-        return self._pytesseract.image_to_string(image, lang=language)
-
-
-class PaddleOcrEngine:
-    """PaddleOCR (PaddlePaddle backend). Higher accuracy for noisy scans."""
-
-    def __init__(self) -> None:
-        from paddleocr import PaddleOCR  # type: ignore[import-not-found]
-
-        self._engine = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
-
-    def image_to_text(self, image_bytes: bytes, *, language: str = "eng") -> str:
-        import numpy as np
-        from PIL import Image
-
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        arr = np.array(image)
-        result = self._engine.ocr(arr, cls=True)
-        # `result` is a list of pages, each a list of (bbox, (text, score)).
-        lines: list[str] = []
-        for page in result:
-            for _bbox, (text, _score) in page or []:
-                if text:
-                    lines.append(text)
-        return "\n".join(lines)
+OCR_PROMPT = (
+    "You are an OCR engine. Transcribe ALL text visible in this image exactly "
+    "as written, preserving reading order and paragraph breaks. Do NOT "
+    "summarize, translate, paraphrase, or add commentary. If a word or region "
+    "is unreadable, write [illegible] in its place rather than guessing. "
+    "Return your transcription, a confidence score from 0 to 1 reflecting how "
+    "accurate and complete the transcription is, and whether any region was "
+    "illegible."
+)
 
 
-def _build_engine(prefer: str = "tesseract") -> OcrEngine:
-    """Pick an engine lazily so the worker can boot even if a backend fails."""
-    if prefer == "paddle":
-        try:
-            return PaddleOcrEngine()
-        except Exception as exc:  # pragma: no cover — runtime fallback
-            logger.warning("PaddleOCR unavailable, falling back to Tesseract: %s", exc)
-    return TesseractEngine()
+def _detect_mime(image_bytes: bytes) -> str:
+    """Sniff the image mime type from magic bytes; default to image/png."""
+    if image_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    if image_bytes.startswith(b"GIF8"):
+        return "image/gif"
+    if image_bytes.startswith((b"II*\x00", b"MM\x00*")):
+        return "image/tiff"
+    return "image/png"
 
 
 # =============================================================================
@@ -86,26 +96,94 @@ def ocr_image(
     document_id: str,
     *,
     language: str = "eng",
-    engine: str = "tesseract",
 ) -> dict:
-    """Run OCR over a base64-encoded image.
+    """Run vision-LLM OCR over a base64-encoded image.
 
-    The worker pipeline for "Scan & Listen" (UI-UX.md §5):
-      client → BFF → enqueue `ocr_image` → parse_document on the extracted
-      text → same segment-tree flow as paste/file imports.
-
-    Returns a dict with `text`, `engine`, and `language` for downstream
-    attribution.
+    Returns text + a single-page confidence mapped onto the existing OCR
+    contract. Per TESTING.md §9 we emit `ocr.page_complete` and a warning
+    when confidence is low.
     """
+    started = time.monotonic()
     image_bytes = base64.b64decode(image_base64)
+    mime = _detect_mime(image_bytes)
     logger.info(
-        "ocr_image: document_id=%s engine=%s bytes=%d", document_id, engine, len(image_bytes)
+        "ocr_image: document_id=%s mime=%s bytes=%d",
+        document_id,
+        mime,
+        len(image_bytes),
     )
-    ocr_engine = _build_engine(engine)
-    text = ocr_engine.image_to_text(image_bytes, language=language)
+
+    data_url = f"data:{mime};base64,{image_base64}"
+    content, _usage = complete_vision(
+        OCR_PROMPT,
+        data_url,
+        json_schema=OCR_SCHEMA,
+        temperature=0.0,
+        feature="ocr",
+    )
+
+    try:
+        parsed = json.loads(content)
+        text = str(parsed.get("text", ""))
+        confidence = float(parsed.get("confidence", 0.0))
+        has_illegible = bool(parsed.get("has_illegible", False))
+    except (ValueError, TypeError):
+        # Defensive: a non-JSON reply still yields usable text at zero confidence.
+        text = content
+        confidence = 0.0
+        has_illegible = True
+
+    confidence = max(0.0, min(1.0, confidence))
+    low = confidence < LOW_CONFIDENCE_THRESHOLD or has_illegible
+    duration_ms = int((time.monotonic() - started) * 1000)
+
+    logger.info(
+        json_line(
+            "ocr.page_complete",
+            request_id="-",
+            document_id=document_id,
+            page_index=0,
+            engine="vision",
+            confidence=round(confidence, 3),
+            has_illegible=has_illegible,
+            duration_ms=duration_ms,
+        )
+    )
+    if confidence < WARN_CONFIDENCE_THRESHOLD or has_illegible:
+        logger.warning(
+            json_line(
+                "ocr.low_confidence",
+                request_id="-",
+                document_id=document_id,
+                page_index=0,
+                confidence=round(confidence, 3),
+                has_illegible=has_illegible,
+            )
+        )
+
     return {
         "document_id": document_id,
         "text": text,
-        "engine": engine,
+        "engine": f"vision:{_model_label()}",
         "language": language,
+        "page_count": 1,
+        "median_confidence": round(confidence, 3),
+        "low_confidence": low,
+        "confidence_per_page": [round(confidence, 3)],
+        "duration_ms": duration_ms,
     }
+
+
+def _model_label() -> str:
+    """Best-effort model name for the `engine` field (telemetry only)."""
+    try:
+        from .openrouter import _default_model
+
+        return _default_model()
+    except Exception:
+        return "openrouter"
+
+
+def json_line(event: str, **fields: object) -> str:
+    """Minimal JSON-line helper for structured logs (avoids extra deps)."""
+    return json.dumps({"event": event, **fields})

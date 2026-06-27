@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { themes, type ThemeName } from "@readmaxxing/ui";
+
+// Re-export the server-safe theme helper so existing call-sites that imported
+// it from `./providers` keep working without round-tripping through the
+// client boundary. The real definition lives in `@readmaxxing/ui/themes`.
+export { initialThemeFromCookie } from "@readmaxxing/ui";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -13,7 +17,8 @@ interface ProvidersProps {
  *
  * - `QueryClientProvider` — TanStack Query for server state (positions,
  *   documents, summaries). Cached offline where possible.
- * - Theme: warm-paper light by default, true-dark on user opt-in.
+ * - Theme: ReadMaxxing M-Chef design-system tokens, light by default with a
+ *   true-dark mode on user opt-in (see DESIGN-SYSTEM §3).
  *
  * Auth (Privy) is intentionally **not** wired here in Phase 1 — the
  * middleware uses the `x-dev-user-id` dev header. Phase 2 wraps with
@@ -34,14 +39,4 @@ export function Providers({ children }: ProvidersProps): React.JSX.Element {
   );
 
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-}
-
-/**
- * Helper for picking the theme from a server-rendered `theme` cookie
- * (used by `app/layout.tsx` to set `[data-theme]` before hydration).
- */
-export function initialThemeFromCookie(cookie: string | undefined): ThemeName {
-  if (!cookie) return "light";
-  if (cookie in themes) return cookie as ThemeName;
-  return "light";
 }

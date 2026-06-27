@@ -17,6 +17,11 @@ const paddingClasses: Record<NonNullable<CardProps["padding"]>, string> = {
   lg: "p-8",
 };
 
+/**
+ * Card — 20px default radius (DESIGN-SYSTEM §7.1). The inverse variant
+ * is for AI-insight-style dark cards on light themes; the accent strip
+ * is the 3–6px top band reserved for hero cards.
+ */
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   (
     {
@@ -33,8 +38,8 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          "relative rounded-lg border",
-          inverse ? "bg-inverse text-ink-inverse border-inverse" : "bg-card border-border-subtle",
+          "relative rounded-lg border bg-card",
+          inverse ? "bg-inverse text-ink-inverse border-inverse" : "border-border-subtle",
           paddingClasses[padding],
           className,
         )}
@@ -43,7 +48,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
         {accentStrip ? (
           <div
             aria-hidden
-            className="absolute inset-x-0 top-0 h-1 rounded-t-lg bg-accent"
+            className="absolute inset-x-0 top-0 h-1 rounded-t-lg bg-coral-bg"
           />
         ) : null}
         {children}
@@ -82,4 +87,5 @@ export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
     </div>
   ),
 );
+
 CardHeader.displayName = "CardHeader";

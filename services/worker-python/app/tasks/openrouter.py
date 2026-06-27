@@ -190,6 +190,67 @@ def complete(
     return content, usage
 
 
+def complete_vision(
+    prompt: str,
+    image_data_url: str,
+    *,
+    model: str | None = None,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+    json_schema: dict | None = None,
+    feature: str | None = None,
+    timeout_s: float = DEFAULT_TIMEOUT_S,
+) -> tuple[str, TokenUsage]:
+    """Non-streaming multimodal completion (text prompt + one image).
+
+    Sends a single user message whose `content` is an array of a text block
+    and an `image_url` block (a `data:<mime>;base64,...` URL). The default
+    model (`openai/gpt-4o-mini`) is vision-capable. Returns the assistant
+    text and token usage; raises `RuntimeError` on transport / API failure.
+    """
+    body: dict = {
+        "model": model or _default_model(),
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": image_data_url}},
+                ],
+            }
+        ],
+        "stream": False,
+    }
+    if temperature is not None:
+        body["temperature"] = temperature
+    if max_tokens is not None:
+        body["max_tokens"] = max_tokens
+    if json_schema is not None:
+        body["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": json_schema["name"],
+                "schema": json_schema["schema"],
+                "strict": json_schema.get("strict", True),
+            },
+        }
+    if feature:
+        body["metadata"] = {"feature": feature}
+
+    with httpx.Client(timeout=timeout_s) as client:
+        resp = client.post(OPENROUTER_BASE, headers=_build_headers(), json=body)
+    if resp.status_code >= 400:
+        raise RuntimeError(f"openrouter: {_format_error(resp.status_code, resp.text)}")
+
+    payload = resp.json()
+    usage = _parse_usage(payload)
+    choices = payload.get("choices") or []
+    if not choices:
+        raise RuntimeError("openrouter: response contained no choices")
+    content = (choices[0].get("message") or {}).get("content") or ""
+    return content, usage
+
+
 async def acomplete(
     messages: list[ChatMessage],
     *,

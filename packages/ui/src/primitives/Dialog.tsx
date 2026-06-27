@@ -19,12 +19,11 @@ export interface DialogProps {
 }
 
 /**
- * Accessible modal dialog built on the native `<dialog>` element.
- * - Closes on Escape, on scrim click, and on `onOpenChange(false)`.
- * - Traps focus while open via `showModal()`.
- * - Respects `prefers-reduced-motion` (no transforms; opacity-only).
- *
- * Note: uses native `<dialog>` so we don't need a radix dependency in Phase 1.
+ * Accessible modal dialog (DESIGN-SYSTEM §11.5) built on the native
+ * `<dialog>` element. Closes on Escape, on scrim click, and on
+ * `onOpenChange(false)`. Focus is trapped while open via `showModal()`.
+ * Modal radius 28px, padding 32px, scrim rgba(14,15,18,0.55),
+ * shadow-xl.
  */
 export const Dialog: React.FC<DialogProps> = ({
   open,
@@ -70,13 +69,13 @@ export const Dialog: React.FC<DialogProps> = ({
       className={cn(
         "p-0 backdrop:bg-overlay",
         variant === "modal"
-          ? "max-w-[480px] rounded-xl"
-          : "max-sm:max-w-full sm:max-w-[480px] rounded-t-xl sm:rounded-xl fixed bottom-0 inset-x-0 sm:inset-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2",
+          ? "max-w-[560px] rounded-xl"
+          : "max-sm:max-w-full sm:max-w-[560px] rounded-t-xl sm:rounded-xl fixed bottom-0 inset-x-0 sm:inset-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2",
         className,
       )}
     >
       <div className="flex flex-col gap-4 p-8">
-        <h2 id={titleId} className="text-xl font-semibold leading-snug text-ink">
+        <h2 id={titleId} className="text-2xl font-semibold leading-snug text-ink">
           {title}
         </h2>
         {description ? (

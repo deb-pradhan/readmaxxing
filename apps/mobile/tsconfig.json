@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [],
+    "skipLibCheck": true,
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["./apps/mobile/*"],
+      "@readmaxxing/ui": ["./packages/ui/src/index.ts"],
+      "@readmaxxing/ui/*": ["./packages/ui/src/*"],
+      "@readmaxxing/core": ["./packages/core/src/index.ts"],
+      "@readmaxxing/core/*": ["./packages/core/src/*"],
+      "@readmaxxing/tts": ["./packages/tts/src/index.ts"],
+      "@readmaxxing/tts/*": ["./packages/tts/src/*"],
+      "@readmaxxing/config": ["./packages/config/src/index.ts"],
+      "@readmaxxing/config/*": ["./packages/config/src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "types/**/*.d.ts", "test/**/*.d.ts"]
+}

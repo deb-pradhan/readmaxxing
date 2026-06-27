@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * ReaderColumn — the vertically-centered 66ch reading surface (UI-UX.md §5).
+ * ReaderColumn — the 66ch reading surface (DESIGN-SYSTEM §3.5 + §6.5).
  *
- * Thin wrapper around `KaraokeHighlighter`. Reserved here for future
+ * Thin wrapper around `KaraokeHighlighter`. Inter is the only family;
+ * the body is 15px with line-height 1.5. Reserved here for future
  * scroll-into-view, auto-scroll-keep-current-sentence-in-upper-third,
  * focus-mode, and line-guide logic.
  */

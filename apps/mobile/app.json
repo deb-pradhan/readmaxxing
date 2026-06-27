@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "ReadMaxxing",
+    "slug": "readmaxxing",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "readmaxxing",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.readmaxxing.mobile",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSCameraUsageDescription": "ReadMaxxing uses the camera to scan printed pages and read them aloud.",
+        "NSMicrophoneUsageDescription": "ReadMaxxing uses the microphone for voice assistant input and voice cloning."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FBFBF8"
+      },
+      "package": "app.readmaxxing.mobile",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "ReadMaxxing needs the microphone for the voice assistant and voice cloning."
+        }
+      ],
+      "expo-notifications",
+      "expo-camera",
+      "expo-document-picker"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

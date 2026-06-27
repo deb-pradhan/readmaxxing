@@ -4,22 +4,22 @@ overview: ""
 todos:
   - id: phase1_foundations
     content: "Phase 1 — Foundations: Turborepo/pnpm monorepo; Railway services (web+worker+Postgres+Redis+volume); Privy auth (JWT middleware + user-mirror webhook); design system package (tokens/themes/primitives per UI-UX.md); Prisma schema incl. habit tables; packages/tts provider+adapters+router; Python worker scaffold; streaming + speech marks cached to IndexedDB (no server audio except podcasts); SSE position-sync; perf-budget CI gates"
-    status: in_progress
+    status: completed
   - id: phase2_reader_core
     content: "Phase 2 — Reader Core: zero-friction onboarding (marquee default voice, sample doc, coachmarks), import pipeline to segment tree, player built to UI-UX.md §4 (streaming, karaoke, speed, keyboard, no autoplay, resume-to-word, no mid-play recs), reader surface §5 (bionic, focus, click-to-jump), library §6, cross-device sync + offline (IndexedDB)"
-    status: pending
+    status: completed
   - id: phase3_ai_layer
     content: "Phase 3 — AI Layer: source-cited summary (layered), retrieval-practice quiz, recap-on-return, ask-the-doc with quick chips, latency-honest + human-error UX, LLM filler-segment marking"
-    status: pending
+    status: completed
   - id: phase4_podcasts_assistant
     content: "Phase 4 — AI Podcasts + Voice Assistant: style-based multi-speaker podcast generator with honest staged progress + feed + talk-with-hosts; context-aware voice assistant in user's TTS voice with voice-in"
-    status: pending
+    status: completed
   - id: phase5_voice_ocr_habit
     content: Phase 5 — Voice Typing (diff-view cleanup), Voice Cloning (consent flow), OCR scan-and-listen; Phase 5.5 Habit layer (Duolingo-style streaks/leaderboards/XP/badges/quests, pressure-without-shame)
-    status: pending
+    status: completed
   - id: phase6_extension_mobile
     content: Phase 6 — Chrome MV3 extension + Expo/React Native mobile (shared ui+core, identical controls/shortcuts, background playback, on-device offline TTS, native push, thumb-arc layout, Dynamic Type)
-    status: pending
+    status: completed
 isProject: false
 ---
 

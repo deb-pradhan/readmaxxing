@@ -46,3 +46,6 @@ docker-compose.override.yml
 
 # Test
 coverage/
+# Local dev runtime artifacts
+.run-logs/
+celerybeat-schedule.db

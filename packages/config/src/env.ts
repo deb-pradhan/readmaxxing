@@ -23,6 +23,8 @@ const clientSchema = z.object({
     .string()
     .url()
     .default("http://localhost:3000"),
+  // Observability — DSN is public-safe (Sentry scope is the project, not a secret).
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 });
 
 const serverSchema = z.object({
@@ -41,6 +43,14 @@ const serverSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   WORKER_API_URL: z.string().url().optional(),
   WORKER_API_TOKEN: z.string().optional(),
+  // Observability (server-only — server DSNs and log destinations).
+  SENTRY_DSN: z.string().url().optional(),
+  LOG_DESTINATION: z
+    .enum(["stdout", "axiom", "logtail"])
+    .default("stdout"),
+  LOG_LEVEL: z
+    .enum(["debug", "info", "warn", "error"])
+    .default("info"),
 });
 
 export type ClientEnv = z.infer<typeof clientSchema>;

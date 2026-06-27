@@ -1,13 +1,8 @@
 "use client";
 
 /**
- * Leaderboard — Phase 5.5 placeholder.
- *
- * The leaderboards UI is out of scope for Phase 1 (the DB tables exist in
- * `packages/db/prisma/schema.prisma`). This primitive renders a quiet
- * placeholder card so the player page and library shells can reference
- * it. Phase 5.5 replaces the body with the real weekly league table +
- * private-mode toggle.
+ * Leaderboard — placeholder card. The full table primitive lives in
+ * `LeaderboardTable`.
  */
 
 import * as React from "react";
@@ -26,7 +21,7 @@ export interface LeaderboardProps {
   className?: string;
 }
 
-export function Leaderboard({ leagueName, entries, className }: LeaderboardProps) {
+export function Leaderboard({ leagueName, entries, className }: LeaderboardProps): React.JSX.Element {
   return (
     <section
       aria-label={`${leagueName} leaderboard`}
@@ -36,7 +31,7 @@ export function Leaderboard({ leagueName, entries, className }: LeaderboardProps
       )}
     >
       <header className="mb-3 flex items-center justify-between">
-        <h3 className="font-serif text-lg font-semibold">{leagueName}</h3>
+        <h3 className="text-lg font-semibold">{leagueName}</h3>
         <span className="text-xs text-ink-muted">Weekly</span>
       </header>
       {entries.length === 0 ? (

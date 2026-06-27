@@ -23,8 +23,9 @@ const sideClasses: Record<NonNullable<TooltipProps["side"]>, string> = {
 };
 
 /**
- * Lightweight tooltip. Pure CSS hover/focus reveal — no portal, no floating-ui
- * dependency in Phase 1. Adds a labeled description to the trigger via
+ * Lightweight tooltip (DESIGN-SYSTEM §11.5 — popover/dropdown menu
+ * style). Pure CSS hover/focus reveal — no portal, no floating-ui
+ * dependency. Adds a labeled description to the trigger via
  * `aria-describedby` so screen readers announce the tooltip text.
  */
 export const Tooltip: React.FC<TooltipProps> = ({

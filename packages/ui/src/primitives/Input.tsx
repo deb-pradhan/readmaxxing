@@ -15,10 +15,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  (
-    { label, helper, leading, trailing, error, className, id, ...rest },
-    ref,
-  ) => {
+  ({ label, helper, leading, trailing, error, className, id, ...rest }, ref) => {
     const reactId = React.useId();
     const inputId = id ?? reactId;
     const helperId = helper ? `${inputId}-helper` : undefined;
@@ -36,9 +33,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className={cn(
             "flex h-12 items-center gap-2 rounded-md border bg-card-muted px-4",
             "transition-shadow duration-fast",
-            "focus-within:border-accent focus-within:shadow-focus",
+            "focus-within:border-coral-bg focus-within:shadow-focus",
             error
-              ? "border-danger focus-within:border-danger focus-within:shadow-[0_0_0_3px_rgba(210,56,56,0.35)]"
+              ? "border-danger focus-within:border-danger focus-within:shadow-[0_0_0_3px_rgba(214,46,46,0.35)]"
               : "border-border",
           )}
         >
@@ -79,6 +76,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     );
   },
 );
+
 Input.displayName = "Input";
 
 export interface TextareaProps
@@ -103,7 +101,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            "min-h-[96px] w-full resize-y rounded-md border bg-card-muted px-4 py-3 text-base text-ink placeholder:text-ink-faint outline-none transition-shadow duration-fast focus:border-accent focus:shadow-focus",
+            "min-h-[96px] w-full resize-y rounded-md border bg-card-muted px-4 py-3 text-base text-ink placeholder:text-ink-faint outline-none transition-shadow duration-fast focus:border-coral-bg focus:shadow-focus",
             error ? "border-danger" : "border-border",
             className,
           )}
@@ -118,4 +116,5 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     );
   },
 );
+
 Textarea.displayName = "Textarea";

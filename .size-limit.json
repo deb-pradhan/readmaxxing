@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/size-limit/schema.json",
+  "title": "ReadMaxxing performance budgets",
+  "_comment": "Per UI-UX.md §10: reader route bundle ≤ 150KB gzip; initial HTML < 50KB. The web app's `next build` produces multiple route bundles; we sample the reader route (`(reader)/[docId]`) as the load-bearing one.",
+  "apps": [
+    {
+      "name": "apps/web (full next build)",
+      "path": "apps/web/.next/static",
+      "limit": "500 KB",
+      "ignore": [
+        "_buildManifest\\.js$",
+        "_ssgManifest\\.js$",
+        "_middlewareManifest\\.js$",
+        "polyfills\\.js$",
+        "webpack-runtime\\.js$"
+      ],
+      "brotli": false
+    }
+  ]
+}

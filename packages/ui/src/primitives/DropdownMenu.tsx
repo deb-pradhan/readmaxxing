@@ -28,9 +28,10 @@ export interface DropdownMenuProps {
 }
 
 /**
- * Minimal DropdownMenu. Implemented as a positioned menu with click-outside
- * dismissal and Escape handling. No portal in Phase 1 — the trigger's parent
- * must allow `position: relative`.
+ * Dropdown menu (DESIGN-SYSTEM §11.5 — popover, 16px radius, shadow
+ * md, 40px item rows). Click-outside dismissal + Escape handling. No
+ * portal in Phase 1 — the trigger's parent must allow `position:
+ * relative`.
  */
 export const DropdownMenu: React.FC<DropdownMenuProps> = ({
   trigger,
@@ -98,7 +99,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                     setOpen(false);
                   }}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm",
+                    "flex w-full items-center gap-3 rounded-sm h-10 px-3 text-left text-sm",
                     "transition-colors duration-fast",
                     item.disabled
                       ? "cursor-not-allowed text-ink-faint"

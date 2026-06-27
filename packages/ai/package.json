@@ -9,10 +9,12 @@
     "lint": "echo 'lint: ai'",
     "typecheck": "tsc --noEmit",
     "build": "echo 'build: ai (passthrough)'",
+    "test": "vitest run",
     "clean": "rm -rf .turbo *.tsbuildinfo"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.0"
   }
 }

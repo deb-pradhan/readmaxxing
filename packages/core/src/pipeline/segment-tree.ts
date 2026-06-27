@@ -49,6 +49,12 @@ function normalizeInput(text: string): { text: string; title: string | null; aut
     t = t.slice(authorMatch[0].length);
   }
 
+  // A stripped Title:/Author: prefix leaves the blank-line separator behind;
+  // drop those leading newlines so text begins at the body (parity with Python).
+  if (title !== null || author !== null) {
+    t = t.replace(/^\n+/, "");
+  }
+
   // Collapse runs of > 2 blank lines into a single paragraph break (double newline).
   t = t.replace(/\n{3,}/g, "\n\n");
 
@@ -59,14 +65,24 @@ function normalizeInput(text: string): { text: string; title: string | null; aut
 function tokenizeSentence(sentenceText: string, sentenceStart: number): Word[] {
   const words: Word[] = [];
   // Match a word optionally preceded by a leading-quote, optionally followed
-  // by trailing punctuation that should stay attached for natural reading.
-  const WORD_RE = /[\u2018\u2019\u201C\u201D"'([]*([^\s\u2018\u2019\u201C\u201D"',.;:!?()\[\]]+)([.,;:!?\u2019\u201D)\]]*)/g;
+  // by trailing punctuation that should stay attached for natural reading. The
+  // body allows an *intra-word* apostrophe (straight ' or typographic U+2019)
+  // when it sits between word characters, so contractions and possessives
+  // ("don't", "It's", "o'clock", "James's") stay a single word. A leading or
+  // trailing apostrophe is still treated as a quote delimiter, not word text.
+  const WORD_RE = /[\u2018\u2019\u201C\u201D"'([]*([^\s\u2018\u2019\u201C\u201D"',.;:!?()\[\]]+(?:['\u2019][^\s\u2018\u2019\u201C\u201D"',.;:!?()\[\]]+)*)([.,;:!?\u2019\u201D)\]]*)/g;
   let m: RegExpExecArray | null;
   let idx = 0;
   while ((m = WORD_RE.exec(sentenceText)) !== null) {
-    const start = sentenceStart + m.index;
     const wordText = (m[1] ?? "") + (m[2] ?? "");
     if (!wordText) continue;
+    // `m.index` points at any leading quote/paren the regex consumed but the
+    // word text excludes. Advance past it so [start, end) exactly spans
+    // `wordText` in the source — otherwise offsets drift by the lead length,
+    // which both desyncs karaoke and makes the inter-word gap re-render the
+    // word's final character (e.g. "impossible" → "impossiblee").
+    const leadLen = m[0].length - wordText.length;
+    const start = sentenceStart + m.index + leadLen;
     words.push({
       text: wordText,
       start,
@@ -97,7 +113,7 @@ function splitParagraph(paragraphText: string, paragraphStart: number): Sentence
     let endIdx = -1;
     let terminator = "";
     while ((boundaryMatch = boundaryRe.exec(remaining)) !== null) {
-      const candidateEnd = boundaryMatch.index + boundaryMatch[0].length;
+      const candidateEnd = cursor + boundaryMatch.index + boundaryMatch[0].length;
       // Check the token immediately before the terminator.
       const tokenMatch = paragraphText
         .slice(0, cursor + boundaryMatch.index)
@@ -198,23 +214,32 @@ export function buildSegmentTree(
     const leadingWhitespace = raw.match(/^\s*/)?.[0].length ?? 0;
     cursor += leadingWhitespace;
 
-    // Detect markdown headings.
+    // Detect markdown headings / list / blockquote prefixes. When we strip a
+    // prefix from `body`, we must shift the sentence/word offset base by the
+    // same length — otherwise every word in the block drifts by the prefix
+    // length (desyncing karaoke and doubling characters in the rendered gap).
     let headingLevel: Paragraph["headingLevel"] = 0;
     let body = trimmed;
+    let prefixLen = 0;
     const headingMatch = body.match(HEADING_PREFIX);
     if (headingMatch) {
       headingLevel = Math.min(6, headingMatch[1]!.length) as Paragraph["headingLevel"];
-      body = body.slice(headingMatch[0].length);
+      prefixLen = headingMatch[0].length;
+      body = body.slice(prefixLen);
     } else if (LIST_PREFIX.test(body) || NUM_LIST_PREFIX.test(body)) {
       // Lists remain body paragraphs — sentence splitting will still work.
-      body = body.replace(LIST_PREFIX, "").replace(NUM_LIST_PREFIX, "");
+      const stripped = body.replace(LIST_PREFIX, "").replace(NUM_LIST_PREFIX, "");
+      prefixLen = body.length - stripped.length;
+      body = stripped;
     } else if (BLOCKQUOTE_PREFIX.test(body)) {
-      body = body.replace(BLOCKQUOTE_PREFIX, "");
+      const stripped = body.replace(BLOCKQUOTE_PREFIX, "");
+      prefixLen = body.length - stripped.length;
+      body = stripped;
     }
 
     const start = cursor;
     const end = start + trimmed.length;
-    const sentences = splitParagraph(body, start);
+    const sentences = splitParagraph(body, start + prefixLen);
     const wordCount = sentences.reduce((acc, s) => acc + s.words.length, 0);
     totalWords += wordCount;
 

@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * VoicePicker — grid of voices with one-tap preview on a shared sample.
+ * VoicePicker — grid of voices with one-tap preview on a shared
+ * sample.
  *
- * UI-UX.md §6: the picker previews each voice on the user's text when
- * available. In Phase 1 we ship a fixed sample sentence ("The calm
- * interface gets out of your way and lets the words lead.") so the user
- * can audition voices without committing. Real `audition on your text`
- * lands in Phase 2 once the ElevenLabs streaming pipeline is in place.
+ * Per DESIGN-SYSTEM §11.3 + §11.7 + §13:
+ * - The picker shows marquee defaults + the user's cloned voices.
+ *   Cloned voices sort to the top with a "Your voice" badge.
+ * - Each tile is a slightly rounded square (10px) on the card
+ *   surface; selected voices get the coral ring + accent border.
  */
 
 import * as React from "react";
@@ -18,6 +19,8 @@ export interface VoicePickerVoice {
   name: string;
   label?: string;
   isMarquee?: boolean;
+  /** True for voices trained by the current user. */
+  isCloned?: boolean;
 }
 
 export interface VoicePickerProps {
@@ -41,7 +44,7 @@ export function VoicePicker({
   onPreview,
   sampleText = DEFAULT_SAMPLE,
   className,
-}: VoicePickerProps) {
+}: VoicePickerProps): React.JSX.Element {
   const [previewing, setPreviewing] = React.useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
@@ -51,7 +54,7 @@ export function VoicePicker({
     };
   }, [previewUrl]);
 
-  const handlePreview = async (voiceId: string) => {
+  const handlePreview = async (voiceId: string): Promise<void> => {
     if (!onPreview) return;
     setPreviewing(voiceId);
     try {
@@ -70,9 +73,17 @@ export function VoicePicker({
     }
   };
 
+  // Sort cloned voices to the top — DESIGN-SYSTEM §13: "Cloned voices
+  // appear at the top of the user's voice list with a 'Your voice'
+  // badge."
+  const sortedVoices = React.useMemo(
+    () => [...voices].sort((a, b) => Number(Boolean(b.isCloned)) - Number(Boolean(a.isCloned))),
+    [voices],
+  );
+
   return (
     <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", className)}>
-      {voices.map((voice) => {
+      {sortedVoices.map((voice) => {
         const selected = voice.id === value;
         const playing = previewing === voice.id;
         return (
@@ -81,7 +92,7 @@ export function VoicePicker({
             className={cn(
               "relative flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-all",
               selected
-                ? "border-accent ring-2 ring-accent-soft"
+                ? "border-coral-bg ring-2 ring-coral-soft"
                 : "border-border hover:border-border-strong",
             )}
           >
@@ -92,9 +103,16 @@ export function VoicePicker({
               className="flex flex-1 flex-col items-start gap-1 text-left focus-visible:shadow-focus"
             >
               <div className="flex w-full items-center justify-between">
-                <span className="font-serif text-md font-semibold">{voice.name}</span>
-                {voice.isMarquee ? (
-                  <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+                <span className="text-md font-semibold">{voice.name}</span>
+                {voice.isCloned ? (
+                  <span
+                    data-testid="your-voice-badge"
+                    className="rounded-full bg-coral-soft px-2 py-0.5 text-xs font-medium text-coral-text"
+                  >
+                    Your voice
+                  </span>
+                ) : voice.isMarquee ? (
+                  <span className="rounded-full bg-coral-soft px-2 py-0.5 text-xs font-medium text-coral-text">
                     Recommended
                   </span>
                 ) : null}
@@ -102,7 +120,7 @@ export function VoicePicker({
               {voice.label ? (
                 <span className="text-xs text-ink-muted">{voice.label}</span>
               ) : null}
-              <span className="mt-1 text-xs text-ink-faint">“{sampleText.slice(0, 40)}…”</span>
+              <span className="mt-1 text-xs text-ink-faint">"{sampleText.slice(0, 40)}…"</span>
             </button>
             <button
               type="button"

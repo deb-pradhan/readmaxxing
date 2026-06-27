@@ -1,16 +1,17 @@
 /**
  * Design tokens — single source of truth for the visual language.
  *
- * Canonical design law: docs/UI-UX.md
+ * Canonical design law: docs/DESIGN-SYSTEM.md (M-Chef system).
  *
- * - Light surface: warm off-white paper `#FBFBF8`, never pure white.
- * - Dark surface: true-dark `#0E0E10`, never pure black.
- * - Max 3 functional colors on screen: text, surface, accent.
- * - Body 16–20px fluid, line-height 1.5–1.6, measure 66ch.
- * - Modular scale 1.250 (minor third).
- * - Tabular figures for any data column.
- * - Spacing scale on 4px grid.
- * - Motion 150–250ms ease-out entrances; respect prefers-reduced-motion.
+ * - Surface tokens: warm off-white (#ECEFE6) on light, true-dark (#0E0F12)
+ *   on dark — never pure white or pure black.
+ * - Brand accents: coral (primary), butter (warm secondary), lavender
+ *   (cool secondary), mint (success). One bright accent per screen.
+ * - Inter is the only type family. Tabular figures for any data column.
+ * - 4px spacing grid, modular 1.250 type scale (minor third).
+ * - 8-step radius scale (xs=6 → full pill).
+ * - Motion: 80–480ms with explicit easings; respect prefers-reduced-motion.
+ * - WCAG 2.2 AA: body 4.5:1, large text 3:1, UI components 3:1.
  */
 
 export const space = {
@@ -32,29 +33,31 @@ export const space = {
 export const radius = {
   xs: "6px",
   sm: "10px",
-  md: "14px",
+  md: "16px",
   lg: "20px",
   xl: "28px",
+  "2xl": "36px",
   full: "9999px",
 } as const;
 
 export const fontSize = {
   xs: ["11px", { lineHeight: "1.4", letterSpacing: "0.02em" }],
-  sm: ["13px", { lineHeight: "1.45" }],
-  base: ["16px", { lineHeight: "1.55" }],
-  md: ["18px", { lineHeight: "1.55" }],
-  lg: ["22px", { lineHeight: "1.45" }],
-  xl: ["28px", { lineHeight: "1.3" }],
-  "2xl": ["36px", { lineHeight: "1.2" }],
-  "3xl": ["48px", { lineHeight: "1.15" }],
-  display: ["72px", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+  sm: ["13px", { lineHeight: "1.4" }],
+  base: ["15px", { lineHeight: "1.5" }],
+  md: ["17px", { lineHeight: "1.5" }],
+  lg: ["20px", { lineHeight: "1.3" }],
+  xl: ["28px", { lineHeight: "1.2" }],
+  "2xl": ["36px", { lineHeight: "1.15" }],
+  "3xl": ["48px", { lineHeight: "1.1" }],
+  display: ["80px", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+  mega: ["120px", { lineHeight: "1.0", letterSpacing: "-0.04em" }],
 } as const;
 
 export const lineHeight = {
-  tight: "1.1",
+  tight: "1.05",
   snug: "1.2",
   normal: "1.4",
-  relaxed: "1.55",
+  relaxed: "1.5",
   loose: "1.65",
 } as const;
 
@@ -71,13 +74,16 @@ export const duration = {
   fast: "150ms",
   base: "220ms",
   slow: "320ms",
-  highlight: "120ms", // word-advance; fast but not strobing (WCAG 2.3.1)
+  deliberate: "480ms",
+  /** Word-advance; fast but not strobing (WCAG 2.3.1). */
+  highlight: "120ms",
 } as const;
 
 export const easing = {
   out: "cubic-bezier(0.2, 0.8, 0.2, 1)",
   in: "cubic-bezier(0.6, 0, 0.8, 0.2)",
   inOut: "cubic-bezier(0.4, 0, 0.2, 1)",
+  spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
 } as const;
 
 export const zIndex = {
@@ -89,20 +95,36 @@ export const zIndex = {
   toast: "200",
 } as const;
 
-/** Measure: 50–75 chars, target 66ch per UI-UX.md §3.2. */
+/** Reading column measure — 66ch (DESIGN-SYSTEM §6.5). */
 export const measure = "66ch";
 
-/** Fluid body type per UI-UX.md §3.2: clamp(16px, 1.1vw + 1rem, 20px). */
-export const fluidBody = "clamp(16px, 1.1vw + 1rem, 20px)";
+/** Coral focus ring — 3px / 35% alpha halo (DESIGN-SYSTEM §19.2). */
+export const focusRing = "0 0 0 3px rgba(255, 92, 68, 0.35)";
 
-/** Functional palette per UI-UX.md §3.1. 3 colors max on screen: text, surface, accent. */
-export const functional = {
-  /** Single calm accent used only for the *active* state — current word, primary CTA. */
-  accent: "#5B4DEF",
-  /** Sentence-tint highlight (soft, ~12% opacity on the accent). */
-  accentSoft: "rgba(91, 77, 239, 0.12)",
-  /** Stronger word-fill highlight. */
-  accentStrong: "rgba(91, 77, 239, 0.28)",
-  /** Focus ring on interactive elements. */
-  focus: "rgba(91, 77, 239, 0.45)",
+/** Hex map mirroring the CSS variables — useful for inline SVG strokes, etc. */
+export const brand = {
+  coralBg: "#FF5C44",
+  coralSoft: "#FFE3DC",
+  coralText: "#C8341B",
+  butterBg: "#F5C84C",
+  butterSoft: "#FFEFC5",
+  butterText: "#6B4F00",
+  lavenderBg: "#B5A6FF",
+  lavenderSoft: "#E4DDFF",
+  lavenderText: "#4433B5",
+  mintBg: "#7FE3B0",
+  mintSoft: "#D6F5E5",
+  mintText: "#1B6B45",
+  ink: "#0E0F12",
+} as const;
+
+export const semantic = {
+  success: "#1F9E5A",
+  successBg: "#E5F6EC",
+  warning: "#C97A0F",
+  warningBg: "#FFF1DC",
+  danger: "#D62E2E",
+  dangerBg: "#FCE4E4",
+  info: "#2A5BD7",
+  infoBg: "#E2EAFB",
 } as const;

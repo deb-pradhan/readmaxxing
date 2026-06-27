@@ -1,19 +1,24 @@
 "use client";
 
 /**
- * KaraokeHighlighter — sentence tint + word fill, advanced by `currentWordIndex`.
+ * KaraokeHighlighter — sentence tint + word fill, advanced by
+ * `currentWordIndex`.
  *
- * Per UI-UX.md §3.1 + §4.8:
- * - Two-level emphasis: current sentence gets a soft tint background,
- *   current word gets a stronger accent fill. Two levels lock the eye
- *   without strobing the page.
+ * Per DESIGN-SYSTEM §3 (color tokens), §4 (type), §5 (icons):
+ * - Two-level emphasis: current sentence gets a soft coral tint
+ *   background, current word gets a stronger coral fill. Two levels
+ *   lock the eye without strobing the page.
  * - Highlight transitions advance at 120ms (motion-highlight token).
  * - `prefers-reduced-motion` collapses the transition to instant.
  * - Click any word to jump — `onWordClick(index)` bubbles up.
- * - Sentence change is announced via a polite live region for screen readers
- *   (UI-UX.md §9).
+ * - Sentence change is announced via a polite live region for screen
+ *   readers (DESIGN-SYSTEM §19.3).
+ * - Each word renders `<span data-word-idx={i}>`, each sentence
+ *   `<span data-sentence-key data-current-sentence>`, and the active
+ *   word `<span data-current-word>` so the page can wire click-to-jump,
+ *   auto-scroll, and CSS hooks directly.
  *
- * Pure presentation: the parent owns the index. The component just renders.
+ * Inter is the only type family — no serif. Body 15px, line-height 1.5.
  */
 
 import * as React from "react";
@@ -27,9 +32,9 @@ export interface KaraokeHighlighterProps {
   currentWordIndex: number;
   /** Click handler — fired with the index of the clicked word. */
   onWordClick?: (wordIndex: number) => void;
-  /** Optional opt-in bionic fixation (UI-UX.md §5). */
+  /** Optional opt-in bionic fixation. */
   bionicReading?: boolean;
-  /** Optional focus-mode dimming for non-current paragraphs (UI-UX.md §5). */
+  /** Optional focus-mode dimming for non-current paragraphs. */
   focusMode?: boolean;
   /** Extra className on the outer container. */
   className?: string;
@@ -61,8 +66,8 @@ function flatten(tree: SegmentTree): FlatWord[] {
 }
 
 /**
- * Bionic Reading — bold the first 40% of letters (default) of each word so
- * the eye can latch onto the word without saccading. Opt-in per UI-UX.md §5.
+ * Bionic Reading — bold the first 40% of letters (default) of each
+ * word so the eye can latch onto the word without saccading. Opt-in.
  */
 function bionicSplit(word: string, fixation = 0.4): { lead: string; rest: string } {
   if (word.length <= 1) return { lead: word, rest: "" };
@@ -97,18 +102,36 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
 
     return (
       <div ref={ref} className={cn("reading-column mx-auto", className)}>
-        {/* Polite live region — UI-UX.md §9: announce current sentence. */}
+        {/* Polite live region — DESIGN-SYSTEM §19.3: announce current
+            sentence for BR + screen-reader users. */}
         <div className="rmx-live" aria-live="polite" aria-atomic="true">
           {currentSentenceText}
         </div>
 
         {tree.paragraphs.map((paragraph) => {
-          const dim = focusMode && paragraph.index !== currentParagraphIndex;
+          const dim =
+            focusMode &&
+            currentParagraphIndex >= 0 &&
+            paragraph.index !== currentParagraphIndex;
+          const level = paragraph.headingLevel ?? 0;
+          const Tag = (level === 1 ? "h1" : level === 2 ? "h2" : level === 3 ? "h3" : "p") as
+            | "h1"
+            | "h2"
+            | "h3"
+            | "p";
+          const blockClass =
+            level === 1
+              ? "mt-10 mb-4 text-2xl font-bold leading-tight tracking-tight first:mt-0 sm:text-3xl"
+              : level === 2
+                ? "mt-10 mb-3 text-xl font-bold leading-snug tracking-tight first:mt-0 sm:text-2xl"
+                : level >= 3
+                  ? "mt-8 mb-2 text-lg font-semibold leading-snug tracking-tight first:mt-0"
+                  : "mb-5 text-[1.0625rem] leading-[1.85] text-ink";
           return (
-            <p
+            <Tag
               key={paragraph.index}
               className={cn(
-                "mb-7 text-body leading-relaxed",
+                blockClass,
                 dim && "opacity-30 transition-opacity",
               )}
               data-paragraph-index={paragraph.index}
@@ -116,15 +139,35 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
               {paragraph.sentences.map((sentence) => {
                 const sentenceIsActive =
                   `${paragraph.index}::${sentence.index}` === currentSentenceKey;
+                // Whitespace AFTER this sentence's last word, up to the
+                // sentence boundary. The inter-sentence space lives inside this
+                // sentence's range (after the final word), so without rendering
+                // it adjacent sentences run together ("word.Paste an article").
+                const lastWord = sentence.words[sentence.words.length - 1];
+                const trailingGap = lastWord
+                  ? paragraph.text.slice(
+                      lastWord.end - paragraph.start,
+                      sentence.end - paragraph.start,
+                    )
+                  : "";
+                // Punctuation before the first word (e.g. an opening quote or
+                // paren) — words start *after* leading punctuation, so render it.
+                const firstWord = sentence.words[0];
+                const leadingGap = firstWord
+                  ? sentence.text.slice(0, firstWord.start - sentence.start)
+                  : "";
                 return (
+                  <React.Fragment key={sentence.index}>
                   <span
-                    key={sentence.index}
                     className={cn(
-                      "rounded-sm transition-colors duration-highlight ease-out",
-                      sentenceIsActive && "bg-accent-soft",
+                      "rounded-md transition-colors duration-highlight ease-out",
+                      sentenceIsActive && "bg-coral-soft/40",
                     )}
                     data-sentence-index={sentence.index}
+                    data-sentence-key={`${paragraph.index}::${sentence.index}`}
+                    data-current-sentence={sentenceIsActive ? "true" : "false"}
                   >
+                    {leadingGap}
                     {sentence.words.map((word) => {
                       const globalIdx = flat.find(
                         (f) => f.word.start === word.start && f.word.end === word.end,
@@ -136,9 +179,16 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
                           role="button"
                           tabIndex={0}
                           aria-current={active ? "true" : undefined}
+                          data-word-idx={globalIdx}
+                          data-current-word={active ? "true" : "false"}
                           className={cn(
-                            "cursor-pointer rounded-sm transition-colors duration-highlight ease-out",
-                            active && "bg-accent-strong text-ink-inverse",
+                            "cursor-pointer rounded-[5px] transition-colors duration-highlight ease-out",
+                            "focus-visible:outline-none focus-visible:shadow-focus",
+                            // Soft tint highlight with breathing room but no
+                            // layout shift (padding offset by negative margin;
+                            // box-decoration-break keeps it tidy across wraps).
+                            active &&
+                              "-mx-0.5 bg-coral-bg/20 px-0.5 font-semibold text-coral-text [-webkit-box-decoration-break:clone] [box-decoration-break:clone]",
                           )}
                           onClick={() => {
                             if (typeof globalIdx === "number" && onWordClick) onWordClick(globalIdx);
@@ -155,14 +205,17 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
                         >
                           {bionicReading ? <BionicWord word={word.text} /> : word.text}
                           {/* Preserve the source spacing exactly. */}
-                          {word.end < sentence.end && textBetween(sentence.text, word, sentence.words)}
+                          {word.end < sentence.end &&
+                            textBetween(sentence.text, sentence.start, word, sentence.words)}
                         </span>
                       );
                     })}
                   </span>
+                  {trailingGap}
+                  </React.Fragment>
                 );
               })}
-            </p>
+            </Tag>
           );
         })}
       </div>
@@ -172,13 +225,16 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
 
 function textBetween(
   sentenceText: string,
+  sentenceStart: number,
   word: Word,
   words: ReadonlyArray<Word>,
 ): React.ReactNode {
   const idx = words.findIndex((w) => w.start === word.start && w.end === word.end);
   const next = words[idx + 1];
   if (!next) return "";
-  return sentenceText.slice(word.end, next.start);
+  // word/next offsets are global (into the whole document); sentenceText is a
+  // local substring, so rebase the slice by the sentence's start offset.
+  return sentenceText.slice(word.end - sentenceStart, next.start - sentenceStart);
 }
 
 const BionicWord = React.memo(function BionicWord({ word }: { word: string }) {

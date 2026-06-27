@@ -1,0 +1,25 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "pnpm --filter @readmaxxing/web start",
+      "startServerReadyPattern": "Ready in",
+      "url": [
+        "http://localhost:3000/"
+      ],
+      "numberOfRuns": 1
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.85 }],
+        "first-contentful-paint": ["warn", { "maxNumericValue": 1500 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 1000 }],
+        "interactive": ["warn", { "maxNumericValue": 200 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 100 }],
+        "cumulative-layout-shift": ["warn", { "maxNumericValue": 0.05 }]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
