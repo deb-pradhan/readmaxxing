@@ -12,7 +12,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Button, StatusPill, cn, type StatusPillStatus } from "@readmaxxing/ui";
+import { Button, StatusPill, cn, type StatusPillStatus, scrollBehavior } from "@readmaxxing/ui";
 import { AskChat } from "@/components/ai/AskChat";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { AppHeader } from "@/components/shared/AppHeader";
@@ -168,7 +168,7 @@ export default function EpisodePage(): React.JSX.Element {
       else break;
     }
     const el = root.querySelector<HTMLElement>(`[data-line-index="${activeIdx}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    el?.scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
   }, [currentTime, transcript]);
 
   if (loadError) {

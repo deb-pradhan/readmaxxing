@@ -19,7 +19,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { SegmentTree, SpeechMark } from "@readmaxxing/core";
 import { MediaSessionWrapper } from "@readmaxxing/core";
 import { Button } from "@readmaxxing/ui";
-import { scrollCurrentSentenceIntoView } from "@readmaxxing/ui";
+import { scrollCurrentSentenceIntoView, scrollBehavior } from "@readmaxxing/ui";
 import { DEFAULT_ELEVENLABS_VOICE_ID, resolveVoiceName } from "@readmaxxing/tts";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { ReaderColumn } from "@/components/reader/ReaderColumn";
@@ -960,7 +960,11 @@ function AiSurface({
     const el = document.querySelector<HTMLElement>(
       `[data-paragraph-index="${paragraphIndex}"]`,
     );
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!el) return;
+    // Phase E (E.6): gate the smooth-scroll animation on the user's
+    // reduced-motion preference. Reduced-motion users get an instant
+    // jump (`behavior: "auto"`) instead of the animated transition.
+    el.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
   }
 
   return (

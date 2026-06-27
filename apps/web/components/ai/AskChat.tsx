@@ -18,7 +18,7 @@
  */
 
 import * as React from "react";
-import { cn, CitationPill } from "@readmaxxing/ui";
+import { cn, CitationPill, scrollBehavior } from "@readmaxxing/ui";
 import { LatencyEstimator } from "./LatencyEstimator";
 
 export interface AskCitation {
@@ -135,7 +135,7 @@ export function AskChat({
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el || typeof el.scrollTo !== "function") return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTo({ top: el.scrollHeight, behavior: scrollBehavior() });
   }, [messages, pending]);
 
   // Allow the parent to inject a question (e.g. from a voice transcript)
