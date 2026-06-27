@@ -12,7 +12,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Button, Eyebrow, cn } from "@readmaxxing/ui";
+import { Button, CountPill, Eyebrow, cn } from "@readmaxxing/ui";
 import { DocCard } from "@/components/library/DocCard";
 import { ImportDropzone } from "@/components/library/ImportDropzone";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
@@ -234,6 +234,22 @@ export default function LibraryPage(): React.JSX.Element {
     return applyLibraryFilter(docs, filter);
   }, [docs, filter]);
 
+  /**
+   * Phase F (F.3): per-filter counts drive the `<CountPill>` on each
+   * filter chip. We compute the count for every chip up-front so
+   * clicking a chip never has to recompute. The "All" count is the
+   * total doc count; everything else delegates to `applyLibraryFilter`
+   * (single source of truth — no parallel classification).
+   */
+  const filterCounts = React.useMemo(() => {
+    const out: Record<string, number> = {};
+    if (!docs) return out;
+    for (const f of LIBRARY_FILTERS) {
+      out[f.label] = applyLibraryFilter(docs, f).length;
+    }
+    return out;
+  }, [docs]);
+
   const visible = filtered.slice(0, chunk * CHUNK_SIZE);
   const more = filtered.length > visible.length;
 
@@ -315,6 +331,7 @@ export default function LibraryPage(): React.JSX.Element {
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:px-0 sm:pb-0">
             {LIBRARY_FILTERS.map((f) => {
               const active = f === filter;
+              const count = filterCounts[f.label] ?? 0;
               return (
                 <button
                   key={f.label}
@@ -324,6 +341,8 @@ export default function LibraryPage(): React.JSX.Element {
                     setChunk(1);
                   }}
                   aria-pressed={active}
+                  data-filter-label={f.label}
+                  data-filter-count={count}
                   className={cn(
                     // Phase D P1 (D.11): ≥44px touch target. py-2 + min-h-11
                     // meets WCAG / Apple HIG while keeping the visual chip
@@ -334,7 +353,18 @@ export default function LibraryPage(): React.JSX.Element {
                       : "border border-border bg-card text-ink-muted hover:bg-card-muted",
                   )}
                 >
-                  {f.label}
+                  <span>{f.label}</span>
+                  {/* Phase F (F.3): mono numeral + 0.55em superscript
+                      count badge. The CountPill is aria-hidden because
+                      the chip itself announces the filter label and
+                      the data-filter-count attribute exposes the count
+                      to programmatic readers if needed. */}
+                  <CountPill
+                    count={count}
+                    aria-hidden
+                    tone={active ? "accent" : "neutral"}
+                    className="ml-1.5 align-baseline"
+                  />
                 </button>
               );
             })}

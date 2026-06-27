@@ -154,8 +154,6 @@ describe("LibraryPage (Phase D P1 — D.3)", () => {
 
     const LibraryPage = (await import("./page")).default;
     render(<LibraryPage />);
-
-    // Wait for docs to load.
     await waitFor(() => {
       expect(screen.getAllByTestId("doc-card").length).toBe(3);
     });
@@ -174,6 +172,57 @@ describe("LibraryPage (Phase D P1 — D.3)", () => {
     for (const c of remaining) {
       expect((c as HTMLElement).dataset.sourceType).toBe("paste");
     }
+  });
+});
+
+describe("LibraryPage (Phase F — F.3 CountPill on filter chips)", () => {
+  function makeDocsResponseForCounts(): Response {
+    // 3 paste, 2 pdf, 1 url.
+    const docs = [
+      { id: "p1", title: "p1", source: "x", sourceType: "paste", wordCount: 1, estimatedReadTimeSeconds: 1, addedAt: "", segmentTreeId: "t" },
+      { id: "p2", title: "p2", source: "x", sourceType: "paste", wordCount: 1, estimatedReadTimeSeconds: 1, addedAt: "", segmentTreeId: "t" },
+      { id: "p3", title: "p3", source: "x", sourceType: "paste", wordCount: 1, estimatedReadTimeSeconds: 1, addedAt: "", segmentTreeId: "t" },
+      { id: "f1", title: "f1", source: "x", sourceType: "pdf", wordCount: 1, estimatedReadTimeSeconds: 1, addedAt: "", segmentTreeId: "t" },
+      { id: "f2", title: "f2", source: "x", sourceType: "pdf", wordCount: 1, estimatedReadTimeSeconds: 1, addedAt: "", segmentTreeId: "t" },
+      { id: "u1", title: "u1", source: "x", sourceType: "url", wordCount: 1, estimatedReadTimeSeconds: 1, addedAt: "", segmentTreeId: "t" },
+    ];
+    return new Response(JSON.stringify({ documents: docs }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("renders a CountPill with the per-filter doc count on every filter chip", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/documents")) return makeDocsResponseForCounts();
+      if (url.includes("/api/positions")) {
+        return new Response(JSON.stringify({ positions: [] }), { status: 200 });
+      }
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const LibraryPage = (await import("./page")).default;
+    render(<LibraryPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("doc-card").length).toBe(6);
+    });
+
+    // Each filter chip carries the right count via `data-filter-count`.
+    const allChip = document.querySelector('[data-filter-label="All"]') as HTMLElement | null;
+    const pastedChip = document.querySelector('[data-filter-label="Pasted"]') as HTMLElement | null;
+    const pdfChip = document.querySelector('[data-filter-label="PDF"]') as HTMLElement | null;
+    const urlChip = document.querySelector('[data-filter-label="URL"]') as HTMLElement | null;
+    expect(allChip?.dataset.filterCount).toBe("6");
+    expect(pastedChip?.dataset.filterCount).toBe("3");
+    expect(pdfChip?.dataset.filterCount).toBe("2");
+    expect(urlChip?.dataset.filterCount).toBe("1");
+
+    // CountPill renders mono + tabular numerals (DESIGN-SYSTEM §25.2).
+    const allChipNumeral = allChip?.querySelector(".font-mono.tabular-nums") as HTMLElement | null;
+    expect(allChipNumeral?.textContent).toBe("6");
   });
 });
 

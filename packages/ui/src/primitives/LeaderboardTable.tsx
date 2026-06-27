@@ -123,7 +123,7 @@ export function LeaderboardTable({
                   : "hover:bg-card-muted",
               )}
             >
-              <span className="tabular w-6 text-ink-muted">#{row.rank}</span>
+              <span className="font-mono tabular-nums w-6 text-ink-muted">#{row.rank}</span>
               {row.avatarUrl ? (
                 <img
                   src={row.avatarUrl}
@@ -144,7 +144,7 @@ export function LeaderboardTable({
                   <span className="ml-2 text-xs text-coral-text">You</span>
                 ) : null}
               </span>
-              <span className="tabular text-ink-muted">
+              <span className="font-mono tabular-nums text-ink-muted">
                 {row.weeklyXp.toLocaleString()} XP
               </span>
             </li>
