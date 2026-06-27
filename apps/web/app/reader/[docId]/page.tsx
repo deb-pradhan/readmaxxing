@@ -20,7 +20,7 @@ import type { SegmentTree, SpeechMark } from "@readmaxxing/core";
 import { MediaSessionWrapper } from "@readmaxxing/core";
 import { Button } from "@readmaxxing/ui";
 import { scrollCurrentSentenceIntoView } from "@readmaxxing/ui";
-import { DEFAULT_ELEVENLABS_VOICE_ID } from "@readmaxxing/tts";
+import { DEFAULT_ELEVENLABS_VOICE_ID, resolveVoiceName } from "@readmaxxing/tts";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { ReaderColumn } from "@/components/reader/ReaderColumn";
 import { ProgressRail } from "@/components/reader/ProgressRail";
@@ -892,7 +892,7 @@ export default function ReaderPage(): React.JSX.Element {
         }}
         onSpeedChange={setSpeed}
         onShowHelp={() => setHelpOpen(true)}
-        voiceLabel={voiceFromQuery}
+        voiceLabel={resolveVoiceName(voiceFromQuery) ?? "Default voice"}
         onSkipFillers={toggleSkipFiller}
       />
       {skipFillerEnabled ? (
