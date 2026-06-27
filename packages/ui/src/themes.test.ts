@@ -126,4 +126,33 @@ describe("themeCssVars — Visual Language v2 contract", () => {
       expect(vars[key]).not.toBe("");
     }
   });
+
+  // Phase D P1 — contrast pass pins (audit §C.2).
+  // We don't compute real WCAG contrast (overkill, and channel-based values
+  // require a downstream color-mix), but we DO pin the two values the
+  // design system relies on: tertiary text darkening + coral-600 ≠ coral-500.
+  describe("contrast pass (Phase D P1 pins)", () => {
+    it("light.textTertiary is the AA-safe #646871 (was #8E929B)", () => {
+      expect(themes.light.textTertiary).toBe("#646871");
+    });
+
+    it("sepia.textTertiary is the AA-safe #75643F", () => {
+      expect(themes.sepia.textTertiary).toBe("#75643F");
+    });
+
+    it("light coral-600 hex is distinct from coral-500 hex (CTA contrast)", () => {
+      const vars = themeCssVars(themes.light);
+      // --coral-500 is the hero/decorative fill; --coral-600 is the AA-safe
+      // primary CTA fill. They must differ or the design contract breaks.
+      expect(vars["--coral-500-hex"]).not.toBe(vars["--coral-600-hex"]);
+      expect(vars["--coral-500-hex"]).toBe("#FF5C44");
+      expect(vars["--coral-600-hex"]).toBe("#D83A22");
+    });
+
+    it("light coral-600 hex resolves to a non-empty CSS var", () => {
+      const vars = themeCssVars(themes.light);
+      expect(vars["--coral-600"]).toBeTruthy();
+      expect(vars["--coral-600"].length).toBeGreaterThan(0);
+    });
+  });
 });
