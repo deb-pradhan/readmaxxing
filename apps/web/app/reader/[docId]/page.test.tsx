@@ -1,5 +1,6 @@
 /**
- * /reader/[docId] — audit C2 (Phase C) playbackRate re-application.
+ * /reader/[docId] — Phase C audit C2 (playbackRate re-application) +
+ * Phase D P1 verifications (touch targets, coachmarks anchor, MediaSession).
  *
  * The reader page mounts an `<audio>` element and must re-apply
  * `audio.playbackRate` every time the `speed` state changes. Before Phase C,
@@ -109,6 +110,12 @@ vi.mock("@/components/shared/KeyboardShortcuts", () => ({
   KeyboardShortcuts: () => <div />,
 }));
 
+// Stub the Coachmarks onboarding tour so we don't pull its DOM into the
+// reader test. The dedicated Coachmarks test covers the popover behavior.
+vi.mock("@/components/onboarding/Coachmarks", () => ({
+  Coachmarks: () => <div data-testid="mock-coachmarks" />,
+}));
+
 // ---- helpers ------------------------------------------------------------------
 
 function makePrefsResponse(defaultSpeed: number | null): Response {
@@ -140,15 +147,13 @@ function makePositionsResponse(): Response {
 
 // ---- tests --------------------------------------------------------------------
 
-describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () => {
+describe("ReaderPage (Phase C + Phase D P1)", () => {
   beforeEach(() => {
     routerPush.mockReset();
+    window.localStorage.clear();
   });
 
-  it("re-applies audio.playbackRate when speed state changes", async () => {
-    // First GET → /api/user/preferences returns defaultSpeed=null (first-time user).
-    // First GET → /api/documents/[id] returns the doc.
-    // First GET → /api/positions returns empty.
+  it("re-applies audio.playbackRate when speed state changes (audit C2)", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : (input as Request).url;
       if (url.includes("/api/user/preferences")) {
@@ -167,9 +172,6 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
     const ReaderPage = (await import("./page")).default;
     render(<ReaderPage />);
 
-    // Wait for the tree to load + audio element to mount. The element renders
-    // unconditionally after `tree` is non-null (which the mock fetch resolves
-    // synchronously in jsdom).
     await waitFor(
       () => {
         const el = document.querySelector("audio");
@@ -181,7 +183,6 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
     const el = document.querySelector("audio");
     expect(el).not.toBeNull();
     const audioEl = el as HTMLAudioElement;
-    // Default speed is 1.0 → onLoadedMetadata sets playbackRate to 1.0.
     await act(async () => {
       audioEl.dispatchEvent(new Event("loadedmetadata"));
     });
@@ -189,8 +190,6 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
       expect(audioEl.playbackRate).toBe(1);
     });
 
-    // Now bump the speed via the player store. The PlayerBar mock doesn't
-    // expose setSpeed, so we go through the store directly.
     const { usePlayerStore } = await import("@/stores/player-store");
     act(() => {
       usePlayerStore.getState().setSpeed(1.5);
@@ -199,7 +198,6 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
       expect(audioEl.playbackRate).toBe(1.5);
     });
 
-    // And back down.
     act(() => {
       usePlayerStore.getState().setSpeed(0.75);
     });
@@ -238,8 +236,6 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
     const el = document.querySelector("audio");
     expect(el).not.toBeNull();
     const audioEl = el as HTMLAudioElement;
-    // On mountedmetadata the rate must reflect the persisted preference (1.25),
-    // not the default 1.0.
     await act(async () => {
       audioEl.dispatchEvent(new Event("loadedmetadata"));
     });
@@ -268,7 +264,6 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
     const ReaderPage = (await import("./page")).default;
     render(<ReaderPage />);
 
-    // Wait for the page to render the toolbar (after tree loads).
     await waitFor(
       () => {
         const btn = screen.queryByRole("button", { name: /Focus mode/ });
@@ -277,8 +272,6 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
       },
       { timeout: 5000 },
     );
-    // The four toolbar toggles — focus / bionic / guide / help — all carry
-    // h-11 w-11 (44px) per Phase D P1 (D.11).
     const toggleLabels = [
       /Focus mode/,
       /Bionic reading/,
@@ -290,5 +283,35 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
       expect(btn.className).toContain("h-11");
       expect(btn.className).toContain("w-11");
     }
+  });
+
+  // Phase D P1 (D.4): reader toolbar exposes the coachmark anchor target.
+  it("renders the reader toolbar with data-coachmark-target='reader-toolbar'", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/user/preferences")) {
+        return makePrefsResponse(null);
+      }
+      if (url.includes("/api/documents/")) {
+        return makeDocResponse();
+      }
+      if (url.includes("/api/positions")) {
+        return makePositionsResponse();
+      }
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const ReaderPage = (await import("./page")).default;
+    render(<ReaderPage />);
+
+    await waitFor(
+      () => {
+        const toolbar = document.querySelector('[data-coachmark-target="reader-toolbar"]');
+        if (!toolbar) throw new Error("reader-toolbar anchor not present");
+        return toolbar;
+      },
+      { timeout: 5000 },
+    );
   });
 });

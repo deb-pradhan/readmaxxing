@@ -27,6 +27,7 @@ import { SelectionMenu } from "@/components/reader/SelectionMenu";
 import { SummaryPanel } from "@/components/ai/SummaryPanel";
 import { QuizCard } from "@/components/ai/QuizCard";
 import { AskChat } from "@/components/ai/AskChat";
+import { Coachmarks } from "@/components/onboarding/Coachmarks";
 import { usePlayerStore } from "@/stores/player-store";
 import { clientSynthesize } from "@/lib/tts/client";
 import { makePosition, WORDS_PER_MINUTE } from "@readmaxxing/core";
@@ -704,7 +705,13 @@ export default function ReaderPage(): React.JSX.Element {
       <ProgressRail percent={percent} minutesLeft={minutesLeft} />
       <ReadingRuler active={lineGuide} />
 
-      <header className="mx-auto flex w-full max-w-reading flex-col gap-3 px-4 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
+      <header
+        // Phase D P1 (D.4): coachmarks anchor target. The first two coachmark
+        // steps ("play" + "speed") point here so the popover lines up next
+        // to the actual controls instead of floating in empty space.
+        data-coachmark-target="reader-toolbar"
+        className="mx-auto flex w-full max-w-reading flex-col gap-3 px-4 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10"
+      >
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-widest text-ink-muted">Now playing</p>
           <h1 className="mt-1 truncate text-xl font-semibold tracking-tight sm:text-2xl">
@@ -860,6 +867,10 @@ export default function ReaderPage(): React.JSX.Element {
       ) : null}
 
       <KeyboardShortcuts open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* Phase D P1 (D.4): mount the first-run coachmarks tour. The
+          Coachmarks component self-gates on session count + lazy-mounts
+          after the first scroll, so it doesn't fight the reader chrome. */}
+      <Coachmarks />
     </main>
   );
 }
