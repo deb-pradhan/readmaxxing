@@ -98,7 +98,7 @@
   --border-inverse: 1px solid rgba(255, 255, 255, 0.10);
 
   /* === Reading column === */
-  --container-reading: 66ch;
+  --container-reading: min(70ch, 100%);
 }
 
 /* Light theme (default) — see §3.2, §3.3, §3.4, §25.1.

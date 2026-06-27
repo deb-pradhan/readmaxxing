@@ -180,6 +180,9 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
             | "h2"
             | "h3"
             | "p";
+          // Phase D P1 (D.9): reading column measure + leading.
+          // 45–70ch at 18px / line-height clamp(1.5, 1.5 + 0.05vw, 1.6)
+          // — tighter than the old 17px @ 1.85, easier on the eye.
           const blockClass =
             level === 1
               ? "mt-10 mb-4 text-2xl font-bold leading-tight tracking-tight first:mt-0 sm:text-3xl"
@@ -187,7 +190,7 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
                 ? "mt-10 mb-3 text-xl font-bold leading-snug tracking-tight first:mt-0 sm:text-2xl"
                 : level >= 3
                   ? "mt-8 mb-2 text-lg font-semibold leading-snug tracking-tight first:mt-0"
-                  : "mb-5 text-[1.0625rem] leading-[1.85] text-ink";
+                  : "mb-5 text-[18px] leading-[clamp(1.5,1.5+0.05vw,1.6)] text-ink";
           return (
             <Tag
               key={paragraph.index}
