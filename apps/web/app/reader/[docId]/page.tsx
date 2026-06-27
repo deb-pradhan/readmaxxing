@@ -19,6 +19,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { SegmentTree, SpeechMark } from "@readmaxxing/core";
 import { MediaSessionWrapper } from "@readmaxxing/core";
 import { Button } from "@readmaxxing/ui";
+import { scrollCurrentSentenceIntoView } from "@readmaxxing/ui";
 import { DEFAULT_ELEVENLABS_VOICE_ID } from "@readmaxxing/tts";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { ReaderColumn } from "@/components/reader/ReaderColumn";
@@ -247,20 +248,23 @@ export default function ReaderPage(): React.JSX.Element {
     return timeline;
   }, [flatWords, marks]);
 
-  // Keep the active word in view — scroll only when it drifts out of the
-  // comfortable middle band, so the page glides with the audio (line focus)
-  // without jittering on every word.
+  // Phase D P1 (D.10): collapse the dual karaoke scroller to the
+  // sentence-anchored one (Phase B's helper). Previously the page had
+  // both a word/center scroller (this effect) and the sentence/start
+  // helper exposed by Phase B's ReaderColumn; we now use ONLY the
+  // sentence helper. Sentence anchors land the active sentence in the
+  // upper third of the viewport — better line focus for the reader.
+  // Smooth scroll is gated on prefers-reduced-motion inside the helper.
   React.useEffect(() => {
-    if (currentWordIndex < 0) return;
-    const el = document.querySelector<HTMLElement>('[data-current-word="true"]');
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const vh = window.innerHeight || document.documentElement.clientHeight;
-    if (rect.top < vh * 0.22 || rect.bottom > vh * 0.8) {
-      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
-    }
-  }, [currentWordIndex]);
+    if (!tree || currentWordIndex < 0) return;
+    const anchor = findActiveSentenceByWord(tree, currentWordIndex);
+    if (!anchor) return;
+    scrollCurrentSentenceIntoView({
+      container: window,
+      paragraphIndex: anchor.paragraphIndex,
+      upperThird: true,
+    });
+  }, [tree, currentWordIndex]);
 
   React.useEffect(() => {
     let cancelled = false;
