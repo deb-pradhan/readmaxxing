@@ -16,6 +16,7 @@ export * from "./Chip";
 export * from "./Avatar";
 export * from "./Toast";
 export * from "./DeltaChip";
+export * from "./Player";
 export * from "./KaraokeHighlighter";
 export * from "./ReaderColumn";
 export * from "./VoicePicker";
