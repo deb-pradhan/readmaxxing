@@ -1,24 +1,183 @@
 /**
- * ReadMaxxing — global CSS baseline (M-Chef design system).
+ * ReadMaxxing — global CSS baseline (M-Chef + Visual Language v2).
  *
- * Per docs/DESIGN-SYSTEM.md §24.3:
+ * Per docs/DESIGN-SYSTEM.md §24.1 + §25:
  * - Body: warm-paper light (#ECEFE6) / true-dark (#0E0F12).
  * - Fluid 15–17px body, line-height 1.5.
  * - Tabular figures globally on body so numbers don't jitter.
- * - Focus ring: 3px coral, 35% alpha halo. Never `outline: none`
- *   without replacement.
+ * - Focus ring: per-theme via `var(--focus-ring)` (coral halo on
+ *   light/dark/sepia, ink ring on e-ink). Never `outline: none`
+ *   without replacement. No forced border-radius — pills stay pills.
  * - Reduced motion: keep color/opacity transitions, drop everything
- *   else to 80ms.
+ *   else to 80ms. JS-driven motion must gate on matchMedia too.
+ * - Accessibility media blocks: `forced-colors`, `prefers-contrast`,
+ *   `prefers-reduced-transparency`, `prefers-reduced-motion`.
  *
  * Tokens are declared in `@readmaxxing/ui/tailwind.config` and consumed
- * via Tailwind utility classes. Semantic CSS variables
- * (`--surface-canvas`, `--text-primary`, etc.) are injected onto
- * `[data-theme=...]` from `themes.ts` via the server-rendered layout.
+ * via Tailwind utility classes. Semantic CSS variables are injected
+ * onto `[data-theme=...]` from `themes.ts` via the server-rendered layout.
  */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =============================================================================
+   §24.1 token reference — installed at :root as light defaults so every
+   surface resolves even if a consumer forgets the per-theme overrides.
+   Per-theme overrides live further down in this file.
+   ============================================================================= */
+
+:root {
+  /* === Type === */
+  --font-sans: var(--font-sans-loaded, "Inter"), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono-loaded, "JetBrains Mono"), ui-monospace, monospace;
+
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 15px;
+  --font-size-md: 17px;
+  --font-size-lg: 20px;
+  --font-size-xl: 28px;
+  --font-size-2xl: 36px;
+  --font-size-3xl: 48px;
+  --font-size-display: 80px;
+  --font-size-mega: 120px;
+
+  --line-height-tight: 1.05;
+  --line-height-snug: 1.2;
+  --line-height-normal: 1.4;
+  --line-height-relaxed: 1.5;
+  --line-height-loose: 1.65;
+
+  --tracking-tightest: -0.04em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-widest: 0.12em;
+
+  /* === Radius (v2 shape language) === */
+  --radius-thumb: 12px;
+  --radius-card: 20px;
+  --radius-tile: 24px;
+  --radius-sheet: 28px;
+  --radius-squircle: 22px;
+  --radius-pill: 9999px;
+
+  /* Legacy aliases — kept for one release. */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-2xl: 36px;
+
+  /* === Motion === */
+  --duration-instant: 80ms;
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --duration-deliberate: 480ms;
+  --duration-highlight: 120ms;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.6, 0, 0.8, 0.2);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* === Elevation (v2) === */
+  --elev-1: 0 1px 2px rgba(14, 15, 18, 0.05);
+  --elev-2: 0 6px 20px rgba(14, 15, 18, 0.08);
+  --elev-3: 0 16px 40px rgba(14, 15, 18, 0.12);
+  --shadow-soft: var(--elev-2);
+
+  /* === Borders === */
+  --border-subtle: 1px solid rgba(14, 15, 18, 0.06);
+  --border-default: 1px solid rgba(14, 15, 18, 0.10);
+  --border-strong: 1px solid rgba(14, 15, 18, 0.18);
+  --border-inverse: 1px solid rgba(255, 255, 255, 0.10);
+
+  /* === Reading column === */
+  --container-reading: 66ch;
+}
+
+/* Light theme (default) — see §3.2, §3.3, §3.4, §25.1.
+   The server-rendered layout also sets these via themeCssVars(theme)
+   for live theme switching; this block is the static fallback. */
+:root,
+[data-theme="light"] {
+  --surface-canvas: #ECEFE6;
+  --surface-card: #FFFFFF;
+  --surface-card-muted: #F4F1EA;
+  --surface-elevated: #FFFFFF;
+  --surface-inverse: #0E0F12;
+  --surface-overlay: rgba(14, 15, 18, 0.55);
+
+  --text-primary: #0E0F12;
+  --text-secondary: #5C6068;
+  --text-tertiary: #646871;
+  --text-inverse: #F4F1EA;
+  --text-inverse-muted: #B5B8BF;
+
+  --accent-coral-bg: #FF5C44;
+  --accent-coral-bg-soft: #FFE3DC;
+  --accent-coral-fg: #FFFFFF;
+  --accent-coral-text: #B82E18;
+
+  --accent-butter-bg: #F5C84C;
+  --accent-butter-bg-soft: #FFEFC5;
+  --accent-butter-fg: #0E0F12;
+  --accent-butter-text: #6B4F00;
+
+  --accent-lavender-bg: #B5A6FF;
+  --accent-lavender-bg-soft: #E4DDFF;
+  --accent-lavender-fg: #FFFFFF;
+  --accent-lavender-text: #4433B5;
+
+  --accent-mint-bg: #7FE3B0;
+  --accent-mint-bg-soft: #D6F5E5;
+  --accent-mint-fg: #0E0F12;
+  --accent-mint-text: #1B6B45;
+
+  --accent-ink-bg: #0E0F12;
+  --accent-ink-fg: #FFFFFF;
+
+  --state-success: #1F9E5A;
+  --state-success-bg: #E5F6EC;
+  --state-warning: #C97A0F;
+  --state-warning-bg: #FFF1DC;
+  --state-danger: #D62E2E;
+  --state-danger-bg: #FCE4E4;
+  --state-info: #2A5BD7;
+  --state-info-bg: #E2EAFB;
+
+  --shadow-xs: 0 1px 2px rgba(14, 15, 18, 0.04);
+  --shadow-sm: 0 2px 6px rgba(14, 15, 18, 0.06), 0 1px 2px rgba(14, 15, 18, 0.04);
+  --shadow-md: 0 6px 16px rgba(14, 15, 18, 0.08), 0 2px 4px rgba(14, 15, 18, 0.04);
+  --shadow-lg: 0 12px 32px rgba(14, 15, 18, 0.12), 0 4px 8px rgba(14, 15, 18, 0.06);
+  --shadow-xl: 0 24px 56px rgba(14, 15, 18, 0.18), 0 8px 16px rgba(14, 15, 18, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(255, 92, 68, 0.35);
+}
+
+/* Dark theme — true dark, not OLED black. */
+[data-theme="dark"] {
+  --surface-canvas: #0E0F12;
+  --surface-card: #18191C;
+  --surface-card-muted: #222428;
+  --surface-elevated: #25272B;
+  --surface-overlay: rgba(0, 0, 0, 0.65);
+
+  --text-primary: #F4F1EA;
+  --text-secondary: #B5B8BF;
+  --text-tertiary: #8A8E96;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 24px 56px rgba(0, 0, 0, 0.65), 0 8px 16px rgba(0, 0, 0, 0.45);
+  --shadow-focus: 0 0 0 3px rgba(255, 138, 117, 0.45);
+}
 
 /* =============================================================================
    Global element styles — DESIGN-SYSTEM.md §3 (color), §4 (type),
@@ -54,23 +213,11 @@ body {
   font-feature-settings: "tnum" 1, "cv11" 1;
 }
 
-/* Focus ring — coral 3px halo per DESIGN-SYSTEM §19.2. */
+/* Focus ring — per-theme via `var(--focus-ring)` (DESIGN-SYSTEM §19.2).
+   No forced border-radius: pills must stay pills on focus (UI-UX-AUDIT §B). */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(255, 92, 68, 0.35);
-  border-radius: var(--radius-sm, 10px);
-}
-
-/* Reduced motion — DESIGN-SYSTEM §10.5 + §19.4. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 80ms !important;
-    scroll-behavior: auto !important;
-  }
+  box-shadow: var(--focus-ring, 0 0 0 3px rgba(255, 92, 68, 0.35));
 }
 
 /* =============================================================================
@@ -106,6 +253,7 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
 /* Hide scrollbars on horizontally-scrollable chip rows (filters, etc.). */
 .no-scrollbar {
   -ms-overflow-style: none;
@@ -113,4 +261,80 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* =============================================================================
+   Accessibility media blocks — DESIGN-SYSTEM §19, UI-UX-AUDIT §B.
+   ============================================================================= */
+
+/* Forced colors (Windows High Contrast Mode) — UI-UX-AUDIT §B.
+   Keep hairlines + focus ring visible via system colors so nothing
+   disappears when the user enables high-contrast mode. */
+@media (forced-colors: active) {
+  *,
+  *::before,
+  *::after {
+    /* Use system colors so the OS paints borders / surfaces the way
+       the user expects them. We avoid hard-coded brand hex here so
+       the canvas, borders, and focus ring remain visible. */
+    border-color: CanvasText;
+  }
+
+  :focus-visible {
+    /* Use the OS "Highlight" system color so the focus indicator is
+       always visible — falls back to the per-theme --focus-ring if
+       the OS doesn't expose Highlight (rare). */
+    outline: 3px solid Highlight;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+}
+
+/* High contrast preference — UI-UX-AUDIT §B.
+   Bump default borders to strong borders so weak hairlines don't
+   disappear for users who request more contrast. */
+@media (prefers-contrast: more) {
+  :root {
+    --border-subtle: 1px solid rgba(14, 15, 18, 0.24);
+    --border-default: 1px solid rgba(14, 15, 18, 0.32);
+    --border-strong: 1px solid rgba(14, 15, 18, 0.48);
+  }
+  [data-theme="dark"] {
+    --border-subtle: 1px solid rgba(255, 255, 255, 0.18);
+    --border-default: 1px solid rgba(255, 255, 255, 0.28);
+    --border-strong: 1px solid rgba(255, 255, 255, 0.42);
+  }
+}
+
+/* Reduced transparency — UI-UX-AUDIT §B.
+   Drop overlay alpha so users who disable transparency still see a
+   usable scrim (instead of a near-transparent one). */
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  [data-theme="light"],
+  [data-theme="dark"],
+  [data-theme="sepia"] {
+    --surface-overlay: rgba(14, 15, 18, 0.95);
+  }
+  [data-theme="dark"] {
+    --surface-overlay: rgba(0, 0, 0, 0.95);
+  }
+  [data-theme="eink"] {
+    --surface-overlay: rgba(0, 0, 0, 0.95);
+  }
+}
+
+/* Reduced motion — DESIGN-SYSTEM §10.5 + §19.4 + UI-UX-AUDIT §B.
+   JS-driven motion (StreakRing rAF, ReaderColumn smooth scroll,
+   karaoke rAF) MUST also gate on matchMedia — this CSS rule covers
+   the rest (animations, transitions, smooth scroll). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 80ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 80ms !important;
+    scroll-behavior: auto !important;
+  }
 }
