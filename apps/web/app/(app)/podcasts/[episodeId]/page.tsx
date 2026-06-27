@@ -12,7 +12,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Button, cn } from "@readmaxxing/ui";
+import { Button, StatusPill, cn, type StatusPillStatus } from "@readmaxxing/ui";
 import { AskChat } from "@/components/ai/AskChat";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { AppHeader } from "@/components/shared/AppHeader";
@@ -43,6 +43,21 @@ interface TranscriptResponse {
   durationSeconds: number;
   lineCount: number;
   lines: TranscriptLine[];
+}
+
+/**
+ * Map a `PodcastEpisodeStatus` enum value to a StatusPill status.
+ *
+ * Phase E (E.3): the prior "still being produced" copy leaked the raw
+ * enum token (`reading_doc`) and the failure branch said "Come back
+ * in a few minutes." StatusPill gives a copy-stable label, and we
+ * promise the email notification (D15) instead of guessing time.
+ */
+function episodeStatusToPill(status: string): StatusPillStatus {
+  if (status === "completed") return "ready";
+  if (status === "failed") return "error";
+  if (status === "queued") return "queued";
+  return "rendering";
 }
 
 export default function EpisodePage(): React.JSX.Element {
@@ -195,6 +210,7 @@ export default function EpisodePage(): React.JSX.Element {
   }
 
   if (episode.status !== "completed") {
+    const pillStatus = episodeStatusToPill(episode.status);
     return (
       <div className="min-h-dvh">
         <AppHeader section="Podcast">
@@ -207,10 +223,19 @@ export default function EpisodePage(): React.JSX.Element {
           <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">
             {episode.title}
           </h1>
-          <div className="mt-8 rounded-lg border border-border-subtle bg-card p-5 text-center sm:p-6">
-            <p className="text-sm text-ink-muted">
-              This episode is still being produced ({episode.status}). Come back in a few
-              minutes.
+          <div className="mt-8 rounded-lg border border-border-subtle bg-card p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <StatusPill status={pillStatus} />
+              <span className="text-sm font-medium text-ink">
+                {pillStatus === "error"
+                  ? "Couldn't finish this episode."
+                  : "Producing this episode."}
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-ink-muted">
+              {pillStatus === "error"
+                ? "Something went wrong while generating this episode. You can try generating it again."
+                : "We'll email you when this episode is ready."}
             </p>
             <Link
               href="/podcasts"

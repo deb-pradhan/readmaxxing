@@ -15,7 +15,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, cn } from "@readmaxxing/ui";
+import { Button, StatusPill, cn, type StatusPillStatus } from "@readmaxxing/ui";
 import { PodcastCreator, PODCAST_STYLES } from "@/components/ai/PodcastCreator";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
@@ -56,6 +56,21 @@ const STYLE_ACCENT: Record<string, string> = {
   debate: "bg-coral-soft text-coral-text",
   lecture: "bg-lavender-soft text-lavender-text",
 };
+
+/**
+ * Map a `PodcastEpisodeStatus` enum value to a StatusPill status.
+ *
+ * Phase E (E.3): the prior feed leaked the raw enum tokens
+ * (`reading_doc`, `writing_script`, etc.). StatusPill maps them to
+ * deterministic, copy-stable labels and a tone; the producing card
+ * below also surfaces "Rendering" for any in-progress stage.
+ */
+function episodeStatusToPill(status: string): StatusPillStatus {
+  if (status === "completed") return "ready";
+  if (status === "failed") return "error";
+  if (status === "queued") return "queued";
+  return "rendering";
+}
 
 export default function PodcastsPage(): React.JSX.Element {
   const [episodes, setEpisodes] = React.useState<EpisodeRow[] | null>(null);
@@ -314,13 +329,10 @@ function EpisodeCard({
 function ProducingCard({ episode }: { episode: EpisodeRow }): React.JSX.Element {
   return (
     <article className="flex h-full flex-col gap-3 rounded-lg border border-dashed border-border bg-card p-5">
-      <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-card-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-ink-muted">
-        <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-coral-bg" />
-        Producing
-      </span>
+      <StatusPill status={episodeStatusToPill(episode.status)} />
       <h3 className="break-words text-md font-semibold leading-snug text-ink">{episode.title}</h3>
-      <p className="tabular text-xs text-ink-muted">
-        Status: <strong className="font-semibold text-ink">{episode.status}</strong>
+      <p className="text-xs text-ink-muted">
+        We'll email you when this episode is ready.
       </p>
       <Link
         href={`/podcasts/${episode.id}`}
