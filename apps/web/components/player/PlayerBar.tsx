@@ -139,10 +139,13 @@ export function PlayerBar({
   // is allowed to use a gradient. The gradient is the sanctioned
   // surface→muted wash from DESIGN-SYSTEM §25.3 (white → cream). It
   // is rendered as a static inline style with CSS variables so themes
-  // (esp. eink) remap it automatically.
+  // (esp. eink) remap it automatically. No hex fallback — the theme
+  // layer guarantees both vars resolve; if a theme forgets to set
+  // them, the gradient simply doesn't render (no hardcoded color
+  // ships with the code).
   const heroGradient: React.CSSProperties = {
     backgroundImage:
-      "linear-gradient(to bottom, var(--surface, #FFFFFF), var(--surface-muted, #F4F1EA))",
+      "linear-gradient(to bottom, var(--surface), var(--surface-muted))",
   };
 
   // When the hero variant is active we ALSO render the mini bar at
