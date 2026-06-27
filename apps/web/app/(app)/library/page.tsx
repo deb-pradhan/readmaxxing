@@ -54,7 +54,10 @@ interface DocumentRow {
 
 interface RecapCardData {
   documentId: string;
-  title: string;
+  /** Title resolved lazily at render time from the current docs list,
+   *  so a recap that arrived before `docs` populated still shows the
+   *  real title once the docs fetch settles (Phase F final-verify fix). */
+  title?: string;
   recap: string;
   generatedAt: string | null;
 }
@@ -207,11 +210,12 @@ export default function LibraryPage(): React.JSX.Element {
           generatedAt: string | null;
         };
         if (!recapBody.recap) return;
-        const titleFromDocs = (docs ?? []).find((d) => d.id === top.documentId)?.title;
         if (cancelled) return;
+        // Title resolved at render time below so a race between the
+        // positions fetch and the docs fetch doesn't strand us on a
+        // generic fallback.
         setRecap({
           documentId: top.documentId,
-          title: titleFromDocs ?? "Your document",
           recap: recapBody.recap,
           generatedAt: recapBody.generatedAt,
         });
@@ -299,8 +303,17 @@ export default function LibraryPage(): React.JSX.Element {
           returning users see "you were here" before the doc grid. The
           endpoint is server-side cached, so the first paint is fast;
           if no position exists, the card is not rendered (no empty
-          state to lie about). */}
-      {recap ? <RecapCard recap={recap} /> : null}
+          state to lie about). Title is resolved from the docs list
+          at render time so it stays in sync even if the recap fetch
+          resolved before the docs fetch did. */}
+      {recap ? (
+        <RecapCard
+          recap={{
+            ...recap,
+            title: docs?.find((d) => d.id === recap.documentId)?.title,
+          }}
+        />
+      ) : null}
 
       {/* Continue listening — sits ABOVE the importer so returning users
           land on their in-progress docs immediately (Phase D P1 D.3). The
@@ -447,7 +460,7 @@ function RecapCard({ recap }: { recap: RecapCardData }): React.JSX.Element {
         Pick up where you left off
       </p>
       <h2 className="mt-2 text-lg font-semibold tracking-tight text-ink">
-        {recap.title}
+        {recap.title ?? "Your document"}
       </h2>
       <p className="mt-2 text-base leading-relaxed text-ink">{recap.recap}</p>
       <div className="mt-4 flex justify-end">
