@@ -1,4 +1,10 @@
 export * from "./Button";
+export * from "./Icon";
+export * from "./IconButton";
+export * from "./Eyebrow";
+export * from "./CountPill";
+export * from "./StatusPill";
+export * from "./CitationPill";
 export * from "./Card";
 export * from "./ContinueShelf";
 export * from "./Input";
@@ -21,3 +27,6 @@ export * from "./LeaderboardTable";
 export * from "./BadgeGrid";
 export * from "./XPBar";
 export * from "./QuestList";
+export * from "./CoverArt";
+export * from "./WaveformScrubber";
+export * from "./Equalizer";

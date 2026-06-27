@@ -11,8 +11,12 @@
  * server (privacy + no blob storage cost). The raw file stays in IndexedDB.
  *
  * Returns `{ documentId, status: "parsed" }` so the client can navigate to
- * `/reader/[docId]`. URL fetching is best-effort — when the worker is
- * unreachable we still accept the URL and queue a stub parse task.
+ * `/reader/[docId]`. We also keep `id` as a deprecated alias for one release
+ * (audit C1) so any Chrome extension / older mobile consumer that still reads
+ * `id` keeps working. New consumers must read `documentId`.
+ *
+ * URL fetching is best-effort — when the worker is unreachable we still accept
+ * the URL and queue a stub parse task.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -175,6 +179,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         documentId: doc.id,
+        // Deprecated alias — kept for one release so older extension / mobile
+        // consumers that still read `id` keep working. New consumers must use
+        // `documentId` (audit C1).
+        id: doc.id,
         status: "parsed",
         title,
         wordCount: tree.wordCount,

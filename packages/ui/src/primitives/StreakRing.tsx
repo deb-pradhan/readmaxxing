@@ -3,9 +3,13 @@
 /**
  * StreakRing — circular SVG ring with a flame icon.
  *
- * Per DESIGN-SYSTEM §14: a small KPI tile + ring fill. When the user
- * hasn't read today and it's after 4pm local time the ring glows
+ * Per DESIGN-SYSTEM §14 + §25.1: a small KPI tile + ring fill. When the
+ * user hasn't read today and it's after 4pm local time the ring glows
  * amber (the "at risk" state). Never red — pressure-without-shame.
+ *
+ * v2: SVG strokes read CSS variables (`var(--coral-500)` /
+ * `var(--warning)`) directly so themes — including e-ink's grayscale
+ * remap — drive the colors. **No hex literals.**
  */
 
 import * as React from "react";
@@ -27,6 +31,16 @@ export interface StreakRingProps {
   className?: string;
 }
 
+/**
+ * `prefers-reduced-motion` is honored by both CSS (globals.css) and JS
+ * — the rAF tween early-returns when the user requests reduced motion
+ * (audit + DESIGN-SYSTEM §10.5).
+ */
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export function StreakRing({
   days,
   goal = 7,
@@ -42,9 +56,10 @@ export function StreakRing({
   const [displayPct, setDisplayPct] = React.useState(targetPct);
 
   // Animate to the new pct over 480ms when `days` changes (DESIGN-SYSTEM
-  // §10.4 — deliberate timing for KPI updates).
+  // §10.4 — deliberate timing for KPI updates). Reduced-motion users
+  // jump to the final value immediately.
   React.useEffect(() => {
-    if (!animated) {
+    if (!animated || prefersReducedMotion()) {
       setDisplayPct(targetPct);
       return;
     }
@@ -66,7 +81,10 @@ export function StreakRing({
   }, [targetPct, animated]);
 
   const atRiskGlow = atRisk && !todayActive;
-  const ringColor = atRiskGlow ? "#C97A0F" : "#FF5C44";
+  // CSS-variable-driven stroke. On e-ink the coral-500 channel remaps
+  // to neutral gray automatically via themeCssVars.
+  const ringStroke = atRiskGlow ? "var(--warning)" : "var(--coral-500-hex)";
+  const flameFill = atRiskGlow ? "var(--warning)" : "var(--coral-500-hex)";
 
   return (
     <div
@@ -75,7 +93,6 @@ export function StreakRing({
       data-state={atRiskGlow ? "at-risk" : todayActive ? "active" : "idle"}
       className={cn(
         "relative inline-flex items-center justify-center",
-        atRiskGlow && "drop-shadow-[0_0_8px_rgba(201,122,15,0.4)]",
         className,
       )}
       style={{ width: size, height: size }}
@@ -85,7 +102,7 @@ export function StreakRing({
         width={size}
         height={size}
         aria-hidden
-        className={atRiskGlow ? "animate-[pulse_2.4s_ease-in-out_infinite]" : undefined}
+        className={cn(atRiskGlow && "animate-[pulse_2.4s_ease-in-out_infinite]")}
       >
         <circle cx="36" cy="36" r={r} fill="none" stroke="var(--border-subtle)" strokeWidth="6" />
         <circle
@@ -93,18 +110,18 @@ export function StreakRing({
           cy="36"
           r={r}
           fill="none"
-          stroke={ringColor}
+          stroke={ringStroke}
           strokeWidth="6"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - displayPct)}
           strokeLinecap="round"
           transform="rotate(-90 36 36)"
         />
-        <FlameIcon cx={36} cy={32} size={22} color={ringColor} />
+        <FlameIcon cx={36} cy={32} size={22} outerFill={flameFill} />
       </svg>
       <span
         className={cn(
-          "absolute bottom-1 left-1/2 -translate-x-1/2 tabular text-sm font-semibold",
+          "absolute bottom-1 left-1/2 -translate-x-1/2 tabular-nums font-mono text-sm font-semibold",
           atRiskGlow ? "text-warning" : "text-ink",
         )}
       >
@@ -118,12 +135,12 @@ function FlameIcon({
   cx,
   cy,
   size,
-  color,
+  outerFill,
 }: {
   cx: number;
   cy: number;
   size: number;
-  color: string;
+  outerFill: string;
 }): React.JSX.Element {
   return (
     <g>
@@ -131,14 +148,14 @@ function FlameIcon({
         d={`M${cx} ${cy - size / 2}
             C ${cx + size / 2} ${cy - size / 4}, ${cx + size / 2} ${cy + size / 4}, ${cx} ${cy + size / 2}
             C ${cx - size / 2} ${cy + size / 4}, ${cx - size / 2} ${cy - size / 4}, ${cx} ${cy - size / 2} Z`}
-        fill={color}
+        fill={outerFill}
         opacity="0.85"
       />
       <path
         d={`M${cx} ${cy - size / 4}
             C ${cx + size / 3} ${cy}, ${cx + size / 3} ${cy + size / 3}, ${cx} ${cy + size / 2 - 1}
             C ${cx - size / 3} ${cy + size / 3}, ${cx - size / 3} ${cy}, ${cx} ${cy - size / 4} Z`}
-        fill="#FFEFC5"
+        fill="var(--butter-bg)"
         opacity="0.5"
       />
     </g>

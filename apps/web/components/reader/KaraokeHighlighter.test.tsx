@@ -68,4 +68,24 @@ describe("KaraokeHighlighter", () => {
     const paragraphs = container.querySelectorAll<HTMLElement>("p");
     expect(paragraphs[0]?.className).not.toContain("opacity-30");
   });
+
+  // Phase D P1 (D.9): reading column measure + leading.
+  it("renders the reading column at 18px / clamp(1.5,1.5+0.05vw,1.6) leading", () => {
+    const tree = makeTree();
+    const { container } = render(<KaraokeHighlighter tree={tree} currentWordIndex={-1} />);
+    const paragraph = container.querySelector<HTMLElement>("p");
+    expect(paragraph).not.toBeNull();
+    const cls = paragraph?.className ?? "";
+    // Arbitrary Tailwind classes render in the DOM as `text-[18px]` and
+    // `leading-[clamp(...)]` after the PostCSS step. Assert both pieces.
+    expect(cls).toContain("text-[18px]");
+    expect(cls).toContain("leading-[clamp(1.5,1.5+0.05vw,1.6)]");
+  });
+
+  it("applies the reading-column utility (CSS var–driven max-width)", () => {
+    const tree = makeTree();
+    const { container } = render(<KaraokeHighlighter tree={tree} currentWordIndex={-1} />);
+    const col = container.querySelector<HTMLElement>(".reading-column");
+    expect(col).not.toBeNull();
+  });
 });

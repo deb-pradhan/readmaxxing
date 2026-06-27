@@ -18,7 +18,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, cn } from "@readmaxxing/ui";
+import { Button, Card, cn } from "@readmaxxing/ui";
 
 type SupportedType = "pdf" | "docx" | "epub" | "md" | "txt" | "image" | "scanned-pdf" | "url";
 
@@ -36,12 +36,15 @@ export interface ImportDropzoneProps {
   endpoint?: string;
   /** Override the OCR endpoint for tests. */
   ocrEndpoint?: string;
-  onImported?: (payload: { id: string; title: string }) => void;
+  onImported?: (payload: { documentId: string; title: string }) => void;
   className?: string;
 }
 
 interface ImportResponse {
-  id: string;
+  /** Canonical field — the document id the client should navigate to. */
+  documentId: string;
+  /** Deprecated alias for `documentId` (audit C1). One release. */
+  id?: string;
   title: string;
   status: "queued" | "parsed";
   message?: string;
@@ -131,7 +134,12 @@ export function ImportDropzone({
       };
       throw new Error(data.message ?? `Import failed (${res.status})`);
     }
-    return (await res.json()) as ImportResponse;
+    const parsed = (await res.json()) as ImportResponse;
+    // Defensive: if the server only emitted the legacy `id` (older deploy or
+    // extension), fall back to it. New servers emit both fields.
+    const documentId = parsed.documentId ?? parsed.id;
+    if (!documentId) return parsed;
+    return { ...parsed, documentId };
   }
 
   async function submitOcr(file: File, title: string): Promise<OcrImportResponse> {
@@ -179,7 +187,7 @@ export function ImportDropzone({
           const title = file.name.replace(/\.[^.]+$/, "");
           const out = await submitOcr(file, title);
           if (!out?.documentId) throw new Error("OCR returned no document id");
-          onImported?.({ id: out.documentId, title: out.title });
+          onImported?.({ documentId: out.documentId, title: out.title });
           router.push(`/reader/${out.documentId}`);
           setStatus("idle");
           setOcrProgress(null);
@@ -191,9 +199,9 @@ export function ImportDropzone({
         setStatus("importing");
         setInfo(`Importing ${title}…`);
         const out = await submit({ text, title, sourceType });
-        if (!out?.id) throw new Error("Server returned no document id");
-        onImported?.({ id: out.id, title: out.title });
-        router.push(`/reader/${out.id}`);
+        if (!out?.documentId) throw new Error("Server returned no document id");
+        onImported?.({ documentId: out.documentId, title: out.title });
+        router.push(`/reader/${out.documentId}`);
         setInfo(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Couldn't import that file.");
@@ -222,11 +230,11 @@ export function ImportDropzone({
     try {
       const title = textTitle.trim() || deriveTextTitle(textValue);
       const out = await submit({ text: textValue, title, sourceType: "txt" });
-      if (!out?.id) throw new Error("Server returned no document id");
+      if (!out?.documentId) throw new Error("Server returned no document id");
       setTextValue("");
       setTextTitle("");
-      onImported?.({ id: out.id, title: out.title });
-      router.push(`/reader/${out.id}`);
+      onImported?.({ documentId: out.documentId, title: out.title });
+      router.push(`/reader/${out.documentId}`);
       setInfo(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't import that text.");
@@ -247,11 +255,11 @@ export function ImportDropzone({
         title: textTitle.trim() || undefined,
         sourceType: "url",
       });
-      if (!out?.id) throw new Error("Server returned no document id");
+      if (!out?.documentId) throw new Error("Server returned no document id");
       setUrlValue("");
       setTextTitle("");
-      onImported?.({ id: out.id, title: out.title });
-      router.push(`/reader/${out.id}`);
+      onImported?.({ documentId: out.documentId, title: out.title });
+      router.push(`/reader/${out.documentId}`);
       setInfo(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't fetch that URL.");
@@ -299,10 +307,10 @@ export function ImportDropzone({
     try {
       const title = deriveTextTitle(text);
       const out = await submit({ text, title, sourceType: "txt" });
-      if (!out?.id) throw new Error("Server returned no document id");
+      if (!out?.documentId) throw new Error("Server returned no document id");
       setTextValue("");
-      onImported?.({ id: out.id, title: out.title });
-      router.push(`/reader/${out.id}`);
+      onImported?.({ documentId: out.documentId, title: out.title });
+      router.push(`/reader/${out.documentId}`);
       setInfo(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't import that text.");
@@ -348,12 +356,7 @@ export function ImportDropzone({
   const labelClass = "text-sm font-medium text-ink";
 
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col gap-4 rounded-lg border border-border-subtle bg-card p-4 sm:p-5",
-        className,
-      )}
-    >
+    <Card padding="none" className={cn("flex w-full flex-col gap-4 p-4 sm:p-5", className)}>
       {/* Mode tabs — segmented control for which input mode is active */}
       <div
         role="tablist"
@@ -549,7 +552,7 @@ export function ImportDropzone({
           ) : null}
         </div>
       ) : null}
-    </div>
+    </Card>
   );
 }
 

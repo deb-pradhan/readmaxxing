@@ -10,7 +10,7 @@
  */
 
 import * as React from "react";
-import { ReaderColumn as UIReaderColumn } from "@readmaxxing/ui";
+import { ReaderColumn as UIReaderColumn, scrollBehavior } from "@readmaxxing/ui";
 import type { SegmentTree } from "@readmaxxing/core";
 
 export interface ReaderColumnProps {
@@ -46,7 +46,7 @@ export const ReaderColumn = React.forwardRef<HTMLDivElement, ReaderColumnProps>(
       const idx = active.getAttribute("data-sentence-key");
       if (!idx || idx === lastScrolledIndex.current) return;
       lastScrolledIndex.current = idx;
-      active.scrollIntoView({ behavior: "smooth", block: "start" });
+      active.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
     }, [currentWordIndex]);
 
     return (

@@ -1,18 +1,35 @@
 /**
  * Design tokens — single source of truth for the visual language.
  *
- * Canonical design law: docs/DESIGN-SYSTEM.md (M-Chef system).
+ * Canonical design law: docs/DESIGN-SYSTEM.md (M-Chef system + Visual Language v2 §25).
  *
  * - Surface tokens: warm off-white (#ECEFE6) on light, true-dark (#0E0F12)
  *   on dark — never pure white or pure black.
- * - Brand accents: coral (primary), butter (warm secondary), lavender
- *   (cool secondary), mint (success). One bright accent per screen.
- * - Inter is the only type family. Tabular figures for any data column.
+ * - Brand accents: coral (primary, 6-stop ramp), butter / lavender / mint
+ *   (supporting tiles), lime (editorial accent — ≤1 per screen, tiles only).
+ *   All accents ship as CSS vars so themes (esp. e-ink) can remap them.
+ * - Type families: Inter (sans, the only display/UI family) and Geist Mono
+ *   (mono, for numerals / timecodes / counts / micro-labels).
  * - 4px spacing grid, modular 1.250 type scale (minor third).
- * - 8-step radius scale (xs=6 → full pill).
+ * - Radius: `thumb 12 / card 20 / tile 24 / sheet 28 / squircle 22 / pill 9999`.
+ * - Elevation: `elev-1 / elev-2 / elev-3` (soft aliases `elev-2`).
+ * - Hairlines: `subtle` (8% ink), `strong` (16% ink).
  * - Motion: 80–480ms with explicit easings; respect prefers-reduced-motion.
  * - WCAG 2.2 AA: body 4.5:1, large text 3:1, UI components 3:1.
  */
+
+/**
+ * Font family stacks. The mono stack leads with Geist Mono (loaded via
+ * `next/font/google` in `apps/web/app/layout.tsx`) and falls back to
+ * JetBrains Mono, then `ui-monospace`. The sans stack keeps Inter.
+ *
+ * Exposed both as a `font` object (token layer) and via
+ * `packages/ui/src/fonts.ts` (legacy consumers).
+ */
+export const font = {
+  sans: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  mono: '"Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+} as const;
 
 export const space = {
   0: "0",
@@ -31,6 +48,15 @@ export const space = {
 } as const;
 
 export const radius = {
+  /** v2 shape language — see DESIGN-SYSTEM §25.3. */
+  thumb: "12px",
+  card: "20px",
+  tile: "24px",
+  sheet: "28px",
+  squircle: "22px",
+  pill: "9999px",
+  circle: "50%",
+  /** Legacy aliases — kept for one release to avoid breaking imports. */
   xs: "6px",
   sm: "10px",
   md: "16px",
@@ -38,6 +64,28 @@ export const radius = {
   xl: "28px",
   "2xl": "36px",
   full: "9999px",
+} as const;
+
+/**
+ * Elevation scale (DESIGN-SYSTEM §25.3).
+ * Cards rest at `elev-1`, lift to `elev-2` on hover, sheets/menus use `elev-3`.
+ * `soft` is a legacy alias for `elev-2` (fixes the prior `shadow-soft` no-op).
+ */
+export const elevation = {
+  "elev-1": "0 1px 2px rgba(14,15,18,.05)",
+  "elev-2": "0 6px 20px rgba(14,15,18,.08)",
+  "elev-3": "0 16px 40px rgba(14,15,18,.12)",
+  /** Legacy alias — `shadow-soft` referenced in 3 sites, was undefined. */
+  soft: "0 6px 20px rgba(14,15,18,.08)",
+} as const;
+
+/**
+ * Hairline borders (DESIGN-SYSTEM §25.1).
+ * Structural rules and dividers — prefer a hairline over a boxed border.
+ */
+export const hairline = {
+  subtle: "rgba(14,15,18,.08)",
+  strong: "rgba(14,15,18,.16)",
 } as const;
 
 export const fontSize = {
@@ -101,7 +149,12 @@ export const measure = "66ch";
 /** Coral focus ring — 3px / 35% alpha halo (DESIGN-SYSTEM §19.2). */
 export const focusRing = "0 0 0 3px rgba(255, 92, 68, 0.35)";
 
-/** Hex map mirroring the CSS variables — useful for inline SVG strokes, etc. */
+/**
+ * @deprecated Prefer CSS variables (e.g. `var(--coral-500)`) or the
+ * `themeCssVars` / `useThemeTokens` surface. This hex map is kept only
+ * for inline SVG stroke consumers (StreakRing, XPBar) that haven't been
+ * tokenized yet — will be removed in a follow-up.
+ */
 export const brand = {
   coralBg: "#FF5C44",
   coralSoft: "#FFE3DC",

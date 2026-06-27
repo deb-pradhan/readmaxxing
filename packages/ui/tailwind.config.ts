@@ -1,14 +1,21 @@
 import type { Config } from "tailwindcss";
-import { fontStacks } from "./src/fonts";
-import { radius, space } from "./src/tokens";
+import { font } from "./src/tokens";
+import { elevation, radius } from "./src/tokens";
 
 /**
- * Tailwind theme preset for ReadMaxxing — maps M-Chef design-system
- * tokens (DESIGN-SYSTEM.md §24.1, §24.2) into Tailwind's `theme.extend`
- * so consumers can write `bg-canvas`, `text-coral`, `rounded-lg`, etc.
+ * Tailwind theme preset for ReadMaxxing — maps M-Chef + Visual Language v2
+ * design tokens (DESIGN-SYSTEM.md §24.1, §25.10) into Tailwind's `theme.extend`.
  *
- * Inter is the only family (no Source Serif, no Atkinson Hyperlegible).
- * The focus ring is the coral halo from §19.2.
+ * v2 changes:
+ * - **Dropped hardcoded accent hex.** Every accent color reads
+ *   `rgb(var(--coral-XXX) / <alpha-value>)` so themes (esp. e-ink) can
+ *   remap via CSS vars and utilities like `bg-coral-500/40` compose alpha.
+ * - **Added elevation scale** (`elev-1/2/3`) + `soft` legacy alias.
+ * - **Added v2 radius scale** (`thumb/tile/sheet/squircle/circle`) and kept
+ *   `sm/md/lg/xl/2xl/full` as legacy aliases for one release.
+ * - **Added mono font** via `font.mono` token (Geist Mono).
+ * - **Legacy aliases** (`bg-coral`, `bg-coral-bg`, `text-coral-text`,
+ *   `shadow-soft`, `rounded-md`) continue to resolve via re-exports.
  */
 const config: Config = {
   content: [
@@ -25,6 +32,7 @@ const config: Config = {
     },
     extend: {
       colors: {
+        // Surface + ink + border — driven by per-theme CSS vars.
         canvas: "var(--surface-canvas)",
         card: "var(--surface-card)",
         "card-muted": "var(--surface-muted)",
@@ -33,45 +41,62 @@ const config: Config = {
         overlay: "var(--surface-overlay)",
 
         ink: {
-          DEFAULT: "var(--text-primary)",
+          DEFAULT: "var(--ink)",
           muted: "var(--text-secondary)",
           faint: "var(--text-tertiary)",
           inverse: "var(--text-inverse)",
           "inverse-muted": "var(--text-inverse-muted)",
         },
 
-        // Brand accents — DESIGN-SYSTEM §3.4.
+        // Coral primary ramp — channels consumed via rgb() so alpha works.
+        // Themes (light/dark/sepia/eink) drive the channels via themeCssVars.
         coral: {
-          bg: "#FF5C44",
-          soft: "#FFE3DC",
-          text: "#C8341B",
-          fg: "#FFFFFF",
+          50: "rgb(var(--coral-050) / <alpha-value>)",
+          100: "rgb(var(--coral-100) / <alpha-value>)",
+          500: "rgb(var(--coral-500) / <alpha-value>)",
+          600: "rgb(var(--coral-600) / <alpha-value>)",
+          700: "rgb(var(--coral-700) / <alpha-value>)",
+          900: "rgb(var(--coral-900) / <alpha-value>)",
+          soft: "rgb(var(--coral-soft) / <alpha-value>)",
+          text: "rgb(var(--coral-text) / <alpha-value>)",
+          // Legacy aliases — bg / fg / soft / text, kept for one release.
+          bg: "var(--coral-bg)",
+          fg: "var(--coral-fg)",
+          "bg-soft": "var(--coral-bg-soft)",
         },
+
+        // Editorial secondary accents (DESIGN-SYSTEM §25.1).
         butter: {
-          bg: "#F5C84C",
-          soft: "#FFEFC5",
-          text: "#6B4F00",
-          fg: "#0E0F12",
+          bg: "var(--butter-bg)",
+          soft: "var(--butter-soft)",
+          text: "var(--butter-text)",
+          fg: "var(--butter-fg)",
         },
         lavender: {
-          bg: "#B5A6FF",
-          soft: "#E4DDFF",
-          text: "#4433B5",
-          fg: "#FFFFFF",
+          bg: "var(--lavender-bg)",
+          soft: "var(--lavender-soft)",
+          text: "var(--lavender-text)",
+          fg: "var(--lavender-fg)",
         },
         mint: {
-          bg: "#7FE3B0",
-          soft: "#D6F5E5",
-          text: "#1B6B45",
-          fg: "#0E0F12",
+          bg: "var(--mint-bg)",
+          soft: "var(--mint-soft)",
+          text: "var(--mint-text)",
+          fg: "var(--mint-fg)",
+        },
+        // Lime — ≤1 per screen, tiles only.
+        lime: {
+          bg: "var(--lime-bg)",
+          soft: "var(--lime-soft)",
+          ink: "var(--lime-ink)",
         },
 
         // Legacy "accent" alias kept for backwards compat — maps to coral.
         accent: {
-          DEFAULT: "#FF5C44",
-          soft: "#FFE3DC",
-          text: "#C8341B",
-          focus: "rgba(255, 92, 68, 0.35)",
+          DEFAULT: "var(--accent-bg)",
+          soft: "var(--accent-soft)",
+          text: "var(--accent-text)",
+          focus: "var(--accent-focus)",
         },
 
         border: {
@@ -81,7 +106,7 @@ const config: Config = {
           inverse: "var(--border-inverse)",
         },
 
-        // Semantic state colors — DESIGN-SYSTEM §3.5.
+        // Semantic state colors — kept as hex; they don't theme-remap.
         success: "#1F9E5A",
         "success-soft": "#E5F6EC",
         warning: "#C97A0F",
@@ -92,8 +117,8 @@ const config: Config = {
         "info-soft": "#E2EAFB",
       },
       fontFamily: {
-        sans: fontStacks.sans.split(", "),
-        mono: fontStacks.mono.split(", "),
+        sans: font.sans.split(", "),
+        mono: font.mono.split(", "),
       },
       fontSize: {
         xs: ["11px", { lineHeight: "1.4", letterSpacing: "0.02em" }],
@@ -108,6 +133,15 @@ const config: Config = {
         mega: ["120px", { lineHeight: "1.0", letterSpacing: "-0.04em" }],
       },
       borderRadius: {
+        // v2 shape language.
+        thumb: radius.thumb,
+        card: radius.card,
+        tile: radius.tile,
+        sheet: radius.sheet,
+        squircle: radius.squircle,
+        pill: radius.pill,
+        circle: radius.circle,
+        // Legacy aliases.
         xs: radius.xs,
         sm: radius.sm,
         md: radius.md,
@@ -115,21 +149,6 @@ const config: Config = {
         xl: radius.xl,
         "2xl": radius["2xl"],
         full: radius.full,
-      },
-      spacing: {
-        0: space[0],
-        1: space[1],
-        2: space[2],
-        3: space[3],
-        4: space[4],
-        5: space[5],
-        6: space[6],
-        7: space[7],
-        8: space[8],
-        9: space[9],
-        10: space[10],
-        11: space[11],
-        12: space[12],
       },
       maxWidth: {
         reading: "66ch",
@@ -149,13 +168,18 @@ const config: Config = {
         spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       boxShadow: {
+        // v2 elevation scale.
+        "elev-1": elevation["elev-1"],
+        "elev-2": elevation["elev-2"],
+        "elev-3": elevation["elev-3"],
+        // Legacy aliases (some old call sites use `shadow-soft`).
         xs: "0 1px 2px rgba(14, 15, 18, 0.04)",
         sm: "0 2px 6px rgba(14, 15, 18, 0.06), 0 1px 2px rgba(14, 15, 18, 0.04)",
         md: "0 6px 16px rgba(14, 15, 18, 0.08), 0 2px 4px rgba(14, 15, 18, 0.04)",
         lg: "0 12px 32px rgba(14, 15, 18, 0.12), 0 4px 8px rgba(14, 15, 18, 0.06)",
         xl: "0 24px 56px rgba(14, 15, 18, 0.18), 0 8px 16px rgba(14, 15, 18, 0.08)",
-        // Coral focus ring — DESIGN-SYSTEM §19.2.
-        focus: "0 0 0 3px rgba(255, 92, 68, 0.35)",
+        soft: elevation.soft,
+        focus: "var(--focus-ring)",
       },
       keyframes: {
         shimmer: {

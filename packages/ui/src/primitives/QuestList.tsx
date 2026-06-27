@@ -61,7 +61,7 @@ export function QuestList({ quests, className }: QuestListProps): React.JSX.Elem
                   <p className="text-sm font-medium">{q.name}</p>
                   <span
                     title={q.bonusReason ?? `+${q.xpReward} XP`}
-                    className="rounded-full bg-card-muted px-2 py-0.5 text-[10px] font-medium text-ink-muted"
+                    className="font-mono tabular-nums rounded-full bg-card-muted px-2 py-0.5 text-[10px] font-medium text-ink-muted"
                   >
                     +{q.xpReward} XP
                   </span>
@@ -73,7 +73,7 @@ export function QuestList({ quests, className }: QuestListProps): React.JSX.Elem
                     style={{ width: `${pct * 100}%` }}
                   />
                 </div>
-                <p className="mt-1 text-xs tabular text-ink-muted">
+                <p className="mt-1 text-xs font-mono tabular-nums text-ink-muted">
                   {q.progress.toLocaleString()} / {q.target.toLocaleString()}
                   {done ? " · Complete" : ""}
                 </p>

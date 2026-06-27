@@ -2,12 +2,17 @@
 
 /**
  * CommandPalette — Cmd/Ctrl+K palette. Wraps the `cmdk` library.
+ *
+ * Phase D P1 (D.5a): refactored to render inside the shared `Dialog`
+ * primitive (native `<dialog>` element). That gives us Escape-to-close,
+ * scrim-click-to-close, and the browser's built-in focus trap — all the
+ * things the prior manual `<div role="dialog">` was missing.
  */
 
 import * as React from "react";
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
-import { cn } from "@readmaxxing/ui";
+import { Dialog, cn } from "@readmaxxing/ui";
 
 export interface CommandPaletteAction {
   id: string;
@@ -31,7 +36,7 @@ export function CommandPalette({
   open,
   onOpenChange,
   className,
-}: CommandPaletteProps): React.JSX.Element | null {
+}: CommandPaletteProps): React.JSX.Element {
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -41,77 +46,72 @@ export function CommandPalette({
     return () => clearTimeout(t);
   }, [open]);
 
-  if (!open) return null;
-
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command palette"
-      className={cn(
-        "fixed inset-0 z-modal flex items-start justify-center bg-overlay p-4 pt-[12vh]",
-        className,
-      )}
-      onClick={() => onOpenChange(false)}
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Command palette"
+      className={cn("max-w-xl !p-2", className)}
     >
-      <div
-        className="w-full max-w-xl rounded-xl border border-border-subtle bg-card p-2 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Command label="Command palette">
-          <Command.Input
-            ref={inputRef}
-            placeholder="Search documents or type a command…"
-            className="w-full rounded-md bg-card-muted px-4 py-3 text-base text-ink placeholder:text-ink-faint focus:outline-none"
-          />
-          <Command.List className="mt-2 max-h-[60vh] overflow-y-auto">
-            <Command.Empty className="px-4 py-3 text-sm text-ink-muted">
-              No matches. Try a different search.
-            </Command.Empty>
-            <Command.Group heading="Library" className="px-1 py-1 text-xs uppercase tracking-widest text-ink-muted">
-              {actions.map((action) => (
-                <Command.Item
-                  key={action.id}
-                  value={action.label}
-                  onSelect={() => {
-                    action.perform();
-                    onOpenChange(false);
-                  }}
-                  className="flex cursor-pointer items-center justify-between rounded-sm h-10 px-3 text-sm text-ink aria-selected:bg-coral-soft aria-selected:text-coral-text"
-                >
-                  <span>{action.label}</span>
-                  {action.hint ? (
-                    <span className="tabular text-xs text-ink-faint">{action.hint}</span>
-                  ) : null}
-                </Command.Item>
-              ))}
-            </Command.Group>
-            <Command.Separator className="my-1 h-px bg-border-subtle" />
-            <Command.Group heading="Quick actions" className="px-1 py-1 text-xs uppercase tracking-widest text-ink-muted">
+      <Command label="Command palette" className="w-full">
+        <Command.Input
+          ref={inputRef}
+          placeholder="Search documents or type a command…"
+          className="w-full rounded-md bg-card-muted px-4 py-3 text-base text-ink placeholder:text-ink-faint focus:outline-none"
+        />
+        <Command.List className="mt-2 max-h-[60vh] overflow-y-auto">
+          <Command.Empty className="px-4 py-3 text-sm text-ink-muted">
+            No matches. Try a different search.
+          </Command.Empty>
+          <Command.Group
+            heading="Library"
+            className="px-1 py-1 text-xs uppercase tracking-widest text-ink-muted"
+          >
+            {actions.map((action) => (
               <Command.Item
-                value="Open library"
+                key={action.id}
+                value={action.label}
                 onSelect={() => {
-                  router.push("/library");
+                  action.perform();
                   onOpenChange(false);
                 }}
                 className="flex cursor-pointer items-center justify-between rounded-sm h-10 px-3 text-sm text-ink aria-selected:bg-coral-soft aria-selected:text-coral-text"
               >
-                Open library
+                <span>{action.label}</span>
+                {action.hint ? (
+                  <span className="tabular text-xs text-ink-faint">{action.hint}</span>
+                ) : null}
               </Command.Item>
-              <Command.Item
-                value="Show shortcuts"
-                onSelect={() => {
-                  window.dispatchEvent(new CustomEvent("rmx:show-shortcuts"));
-                  onOpenChange(false);
-                }}
-                className="flex cursor-pointer items-center justify-between rounded-sm h-10 px-3 text-sm text-ink aria-selected:bg-coral-soft aria-selected:text-coral-text"
-              >
-                Show keyboard shortcuts
-              </Command.Item>
-            </Command.Group>
-          </Command.List>
-        </Command>
-      </div>
-    </div>
+            ))}
+          </Command.Group>
+          <Command.Separator className="my-1 h-px bg-border-subtle" />
+          <Command.Group
+            heading="Quick actions"
+            className="px-1 py-1 text-xs uppercase tracking-widest text-ink-muted"
+          >
+            <Command.Item
+              value="Open library"
+              onSelect={() => {
+                router.push("/library");
+                onOpenChange(false);
+              }}
+              className="flex cursor-pointer items-center justify-between rounded-sm h-10 px-3 text-sm text-ink aria-selected:bg-coral-soft aria-selected:text-coral-text"
+            >
+              Open library
+            </Command.Item>
+            <Command.Item
+              value="Show shortcuts"
+              onSelect={() => {
+                window.dispatchEvent(new CustomEvent("rmx:show-shortcuts"));
+                onOpenChange(false);
+              }}
+              className="flex cursor-pointer items-center justify-between rounded-sm h-10 px-3 text-sm text-ink aria-selected:bg-coral-soft aria-selected:text-coral-text"
+            >
+              Show keyboard shortcuts
+            </Command.Item>
+          </Command.Group>
+        </Command.List>
+      </Command>
+    </Dialog>
   );
 }

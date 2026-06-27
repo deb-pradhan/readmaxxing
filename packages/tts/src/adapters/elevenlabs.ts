@@ -264,6 +264,12 @@ function alignmentToSpeechMarks(
 
 export class ElevenLabsAdapter implements TTSProvider {
   readonly id = "elevenlabs" as const;
+  /**
+   * Static voice catalog — exposed so `voices.ts` can build a
+   * cross-adapter lookup without instantiating an adapter (which
+   * requires an `apiKey`). Phase E (E.2).
+   */
+  static readonly STATIC_VOICES: ReadonlyArray<Voice> = STATIC_VOICES;
   private readonly apiKey: string | null;
   private readonly baseUrl: string;
   private readonly modelId: string;

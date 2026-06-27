@@ -16,6 +16,258 @@ an added "Decisions" section per release that captures the why behind the what.
 
 ---
 
+## [Unreleased] — Visual Language v2 + UI-UX Audit Remediation (2026-06-27)
+
+### What changes next
+
+- Mobile (Expo) and Chrome extension visual reskins — they will adopt
+  the same `packages/ui` tokens now that the foundation has settled.
+  No new behavior; visual parity with the web surface.
+- Phase 7 (post-launch): on-device Piper/Kokoro for offline TTS
+  (swap `expo-av` for `react-native-sherpa-onnx`), Privy native auth
+  in the Expo app, push notification certs for APNs / FCM.
+
+### Added — Visual Language v2 + UI-UX Audit Remediation (2026-06-27)
+
+Lands D39 (Visual Language v2) end-to-end across the entire web surface
+and remediates every P0 (4) + P1 (22) audit finding from
+`docs/UI-UX-AUDIT.md`. The full design spec lives at
+`docs/superpowers/specs/2026-06-27-design-system-v2-design.md`; this
+section summarizes what shipped.
+
+**Design tokens (foundation, V0):**
+- `packages/ui/src/tokens.ts` — added `font` (sans + mono), `radius`
+  (thumb 12 / card 20 / tile 24 / sheet 28 / squircle 22 / pill / circle),
+  `elevation` (`elev-1/2/3` + `soft` legacy alias), `hairline`
+  (`subtle` / `strong`). Legacy `sm/md/lg/xl/2xl/full` kept for one
+  release.
+- `packages/ui/src/themes.ts` — `ThemeTokens` widens with a full
+  accent ramp per theme: `coral` (050/100/500/600/700/900 + soft +
+  text), `butter`, `lavender`, `mint`, and the new editorial `lime`
+  accent. `textTertiary` darkened to `#646871` (light) and `#75643F`
+  (sepia) for AA contrast. **E-ink theme remaps every accent to a
+  grayscale equivalent** — true low-stimulation mode. Per-theme
+  `--focus-ring` for forced-colors safety. `themeCssVars` emits every
+  accent as a CSS variable; coral ships as RGB channels (so Tailwind
+  alpha utilities compose) with parallel `--coral-XXX-hex` aliases
+  for direct fills.
+- `packages/ui/tailwind.config.ts` — accent colors now read
+  `rgb(var(--coral-500) / <alpha-value>)`; hex map deleted. Added
+  `boxShadow.elev-1/2/3/soft/focus`, `borderRadius.thumb/tile/sheet/
+  squircle/circle/pill`, `colors.lime.{bg,soft,ink}`,
+  `fontFamily.mono`. Legacy class aliases (`bg-coral`, `shadow-soft`,
+  `rounded-md`) preserved for one release.
+- `packages/ui/src/globals.css` — full §24.1 token block installed at
+  `:root` with `[data-theme="…"]` overrides. `:focus-visible` line
+  forcing 10px corners on every focused element deleted. Added media
+  blocks for `forced-colors`, `prefers-contrast: more`,
+  `prefers-reduced-transparency: reduce`, and an extended
+  `prefers-reduced-motion` rule.
+- `packages/ui/src/fonts.ts` + `apps/web/app/layout.tsx` — `font.mono`
+  leads with `Geist Mono` (token target); `JetBrains Mono` loaded
+  via `next/font/google` because Geist Mono isn't on Google Fonts
+  (see Decisions).
+
+**New primitives in `packages/ui/src/primitives/`:**
+- `Icon` (Phase B) — Lucide wrapper, sizes 16/20/24, `strokeWidth`,
+  `aria-hidden` default.
+- `IconButton` (Phase B) — circular (`r-circle`), heights 36/44/52,
+  three intents.
+- `Eyebrow` (Phase B) — UPPERCASE +0.08em tracking, 11–12px, weight
+  600. Used in every page header.
+- `CountPill` (Phase B) — mono numeral + 0.55em superscript badge.
+- `StatusPill` (Phase B) — mono, deterministic, never lies (D15).
+  Maps `queued | rendering | ready | error | complete` to copy-stable
+  labels.
+- `CitationPill` (Phase B) — tokenizes `[cite:p:s]` into `↗¶N` pills;
+  opens the matching paragraph anchor.
+- `CoverArt` (Phase F) — deterministic gradient mesh from a `seed`
+  string. No AI image gen, no network. Aspect 3:4 default.
+- `WaveformScrubber` (Phase F) — click-to-seek progress indicator
+  with hairline fallback when no peaks are available.
+- `Equalizer` (Phase F) — 3-bar animated indicator, gated on
+  `prefers-reduced-motion`.
+
+**Rebuilt primitives:**
+- `Button` — pill (`rounded-full`) only; heights 36/44/52; hover
+  derived from `--coral-600` via `color-mix` (no hex); new
+  `<Button.Icon>` slot. White-on-coral-600 contrast = 4.6:1 (AA).
+- `KaraokeHighlighter` — plain `<span>` per word; one delegated click
+  handler on the container using `data-global-index`; active-word swap
+  is color/bg only (no `font-weight` reflow); rAF loop gated on
+  `prefers-reduced-motion`; `aria-current="true"` on active word.
+- `DropdownMenu` — proper `role="menu"` with roving `tabIndex`, arrow
+  keys, Home/End, Escape.
+- `StreakRing`, `XPBar` — SVG strokes read theme tokens via
+  `getComputedStyle`; zero hex literals.
+- `ReaderColumn` — single sentence-scroller helper with
+  reduced-motion-aware smooth scroll.
+- `Card` adopted across components (was used in 1 file pre-v2).
+
+**Chrome extension parity preserved:** `packages/ui/primitives/Player.tsx`
+kept alive — `apps/extension/components/{OverlayPlayer,PopupReader}.tsx`
+import it; cross-surface test (`cross-surface.test.tsx`) pins the
+contract. The orphaned `apps/web/components/player/Player.tsx` was
+deleted; `PlayerBar` is the canonical chrome player.
+
+**Page header sweep (every page):** Eyebrow → Display-1 h1 →
+Subtitle in that order. Affected: `library`, `voice`, `podcasts`,
+`podcasts/[episodeId]`, `assistant`, `dictation`, `settings`,
+`reader/[docId]` (toolbar).
+
+**Surface sweep (reader):**
+- Tools raised to ≥44px (D.11).
+- Reader column measure `min(70ch, 100%)` at 18px / 1.5–1.6 line
+  height (D.9).
+- Dual karaoke scroller collapsed to sentence/start upper-third
+  anchor (D.10).
+- `MediaSession` wired with title + artist + album + action handlers
+  on `loadedmetadata` (D.1).
+- Onboarding coachmarks lazily mount via `IntersectionObserver`,
+  gated on first-3-sessions (D.4).
+- Skip-to-content link in `layout.tsx`; `<main id="main">` on every
+  page (D.5b).
+- CommandPalette + KeyboardShortcuts wrapped in the `Dialog`
+  primitive (D.5a).
+- Speed persists via debounced PATCH to `/api/user/preferences`
+  (C2 + Phase D D.2).
+- "Try a sample" coalesces rapid clicks via `sampleBusy` lock (E.10).
+
+**API route changes (server contracts):**
+- `ImportResponse.id` → `documentId` with legacy `id` alias for one
+  release (C1). All 4 ImportDropzone read sites + test mocks
+  updated.
+- `/api/ai/ask` returns a `prose` field (plain text with
+  `[cite:p:s]` markers) alongside the existing `citations` array
+  (C4). Server-side `validateCitations` (D12) still runs. Client
+  `ChatBubble` tokenizes the markers into `CitationPill`s.
+
+**P0 audit findings fixed (4/4):**
+- C1 — ImportResponse `documentId` rename.
+- C2 — `playbackRate` re-applied on `speed` change + persist.
+- C3 — Per-word `role="button"` eliminated (KaraokeHighlighter
+  refactor).
+- C4 — `[cite:p:s]` markup tokenized; `/api/ai/ask` returns `prose`.
+
+**P1 audit findings fixed (22/22):** Media Session wire, speed
+persist, ContinueShelf above importer, "Pasted" filter fixed,
+coachmarks mount, modal focus + skip link, `:focus-visible` radius
+removed, DropdownMenu arrow keys, contrast pass (ink-3 + coral-600),
+reader measure/leading, dual-scroller collapse, ≥44px touch targets.
+
+**P2 audit findings swept (selected):** Killed fabricated "Hi, Hanna!"
+greeting, raw ElevenLabs voice IDs in PlayerBar/reader, raw enum
+status on podcasts. Replaced every `alert()` in `settings` with
+`<ConfirmDialog>`. JS-driven motion gated on
+`prefers-reduced-motion` everywhere (StreakRing rAF, all smooth
+scrolls, Equalizer, WaveformScrubber). `coral-bg-soft` (non-existent
+class) → `coral-soft`. Recap card mounted on library when recap
+exists. PlayerBar timecode uses mono numerals. Honesty copy: "We'll
+email you when this episode is ready."
+
+**V1/V2/V3 visual:** Peach row active state on filter chips, voice
+picker, leaderboard. PlayerBar hero variant with the **single
+sanctioned** surface→muted gradient (the only gradient in the
+codebase, themable via CSS vars). DocCard uses `CoverArt` for a
+deterministic gradient cover.
+
+### Changed — Visual Language v2 (2026-06-27)
+
+- **Token fidelity across the surface:** zero hardcoded hex literals
+  in `apps/web/components`, `apps/web/app`, or `packages/ui/src/primitives`
+  (verified via `grep -RnE '#[0-9A-Fa-f]{6}'`). The brand hex map in
+  `packages/ui/src/tokens.ts` is the only remaining hex, marked
+  `@deprecated` for direct SVG fills.
+- **`prefers-reduced-motion`** honored across every JS-driven
+  motion: StreakRing rAF, every `scrollIntoView({behavior:"smooth"})`,
+  Equalizer, WaveformScrubber playhead, karaoke swap, hairlines.
+- **Layout viewport themeColor** reads from the active theme instead
+  of a hardcoded hex.
+
+### Fixed — Audit remediation (2026-06-27)
+
+- All 4 P0 audit findings (C1–C4).
+- All 22 P1 audit findings (D.1–D.11 + speed/contrast/scroller/etc.).
+- Selected P2 audit findings (see Added above).
+
+### Decisions — Visual Language v2 (D40)
+
+- **D40 — Visual Language v2 ships.** The full §25 palette, type
+  scale, motion, and component language from `docs/DESIGN-SYSTEM.md`
+  is the canonical design law. Tailwind v3.4.x is the runtime;
+  **do not upgrade to v4** (AGENTS.md gotcha #3 still holds).
+
+- **D40.1 — Accents are CSS variables, e-ink remaps to grayscale.**
+  The `ThemeTokens` interface carries `coral`, `butter`, `lavender`,
+  `mint`, and `lime` accents per theme. The `eink` theme maps every
+  accent to a grayscale equivalent of the same perceptual lightness
+  so the accent CSS vars still resolve and components don't fall
+  back to undefined — this is what makes the "low-stimulation"
+  claim real instead of cosmetic.
+
+- **D40.2 — One sanctioned gradient.** The only `linear-gradient`
+  in the codebase lives in `PlayerBar` (hero variant) and uses
+  `--surface` → `--surface-muted`. Everything else uses flat
+  surfaces. Enforced by an automated grep in the verify gate.
+
+- **D40.3 — Pill + circle buttons only.** Button is `rounded-full`
+  pill, IconButton is `r-circle` (truly circular). The old
+  `rounded-md` square Button was deleted; the legacy class alias
+  resolves to the new pill for one release.
+
+- **D40.4 — `font.mono` leads with Geist Mono; runtime uses
+  JetBrains Mono.** `next/font/google` doesn't carry Geist Mono.
+  `JetBrains Mono` (same metrics family) is the runtime fallback.
+  The token `font.mono` still leads with the string `"Geist Mono"`
+  so the design target is documented and swap-in is trivial if
+  a self-hosted Geist Mono is added later.
+
+- **D40.5 — Citation contract is `[cite:p:s]` server-side,**
+  `CitationPill` client-side. `validateCitations` (D12) runs
+  server-side. `/api/ai/ask` returns `{ prose, citations }`; the
+  client never sees raw markup.
+
+- **D40.6 — `MediaSession` is wired on every reader load** when
+  `'mediaSession' in navigator`. Action handlers (`play`, `pause`,
+  `seekbackward`, `seekforward`, `seekto`) are set on
+  `loadedmetadata`.
+
+- **D40.7 — `prefers-reduced-motion` is enforced in JS as well as
+  CSS.** Every rAF loop and `scrollIntoView({behavior:"smooth"})`
+  checks `window.matchMedia('(prefers-reduced-motion: reduce)')`.
+  The CSS rule already existed; the JS guards are new.
+
+- **D40.8 — `Alert()` is banned.** Every `alert()` call in
+  `apps/web/app/(app)/settings/page.tsx` was replaced with
+  `<ConfirmDialog>`. New `alert()` calls are caught at review.
+
+- **D40.9 — Chrome extension keeps its own `Player` primitive.**
+  `packages/ui/primitives/Player.tsx` is imported by
+  `apps/extension/components/{OverlayPlayer,PopupReader}.tsx`.
+  Cross-surface parity trumps the audit's "delete the Player
+  primitive" recommendation; the orphaned web
+  `apps/web/components/player/Player.tsx` was deleted instead.
+
+### Notes for future agents
+
+- **`geistMonoLoaded` vs `font.mono`:** If you swap to a self-hosted
+  Geist Mono later, replace `JetBrains_Mono` in
+  `apps/web/app/layout.tsx` with your loader; the `font.mono`
+  token already leads with `"Geist Mono"`.
+- **`recap` title race:** The recap-card title is resolved from the
+  docs list at render time, not at fetch time, because the
+  `/api/positions` and `/api/documents` fetches race on mount.
+  See `apps/web/app/(app)/library/page.tsx` JSDoc.
+- **`lastPlayedAt` is the schema field,** not `lastReadAt`. The
+  spec drafted `lastReadAt`; the schema is authoritative.
+- **`defaultSpeed` is the user preference field,** not
+  `readingSpeed`. Same story — schema wins.
+- **`ContinueShelf` ordering:** above the importer (D32), above the
+  recap card (Phase E E.8 choice, documented in commit). Returning
+  users see "you were here" first.
+
+---
+
 ## [Unreleased] — Operating build (2026-06-25 to 2026-06-26)
 
 ### What changes next

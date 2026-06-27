@@ -11,7 +11,7 @@
  */
 
 import * as React from "react";
-import { Button, VoicePicker } from "@readmaxxing/ui";
+import { Button, Eyebrow, VoicePicker } from "@readmaxxing/ui";
 import { VoiceCloneFlow } from "@/components/voice/VoiceCloneFlow";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
@@ -54,13 +54,17 @@ export default function VoicePage(): React.JSX.Element {
         <ThemeSwitcher />
       </AppHeader>
 
-      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Voices</h1>
-          <p className="mt-2 text-base text-ink-muted">
+      <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        {/* Phase F (F.2) v2 page header pattern. */}
+        <header>
+          <Eyebrow as="p">Voices</Eyebrow>
+          <h1 className="mt-2 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+            Voices
+          </h1>
+          <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
             Pick a voice for every listen — or clone your own. Cloned voices are private to you.
           </p>
-        </div>
+        </header>
 
         <section aria-label="Voice picker" className="mt-8">
           <div className="rounded-lg border border-border-subtle bg-card p-5">

@@ -10,10 +10,15 @@
  *   `@readmaxxing/ai` is consumed in the BFF).
  * - Typing indicator with honest latency: "Reading the document…" then
  *   "Thinking… 3s elapsed" (per UI-UX.md §7 — no indeterminate spinners).
+ *
+ * Audit C4 (Phase C P0): the server returns the assistant's full text as a
+ * `prose` field with `[cite:p:s]` placeholders still in place. The chat
+ * tokenizer walks that string and emits `<CitationPill>` instances for each
+ * match — never raw `[cite:0:2]` text reaches the user.
  */
 
 import * as React from "react";
-import { cn } from "@readmaxxing/ui";
+import { cn, CitationPill, scrollBehavior } from "@readmaxxing/ui";
 import { LatencyEstimator } from "./LatencyEstimator";
 
 export interface AskCitation {
@@ -23,6 +28,8 @@ export interface AskCitation {
 
 export interface AskResponse {
   answer: string;
+  /** Audit C4: precomputed prose with `[cite:p:s]` placeholders intact. */
+  prose: string;
   citations: AskCitation[];
   model: string;
 }
@@ -60,9 +67,52 @@ const DEFAULT_QUICK_CHIPS: Array<{ label: string; question: string }> = [
 interface Message {
   id: string;
   role: "user" | "assistant";
-  text: string;
+  /**
+   * Server-rendered prose with `[cite:p:s]` placeholders preserved verbatim.
+   * The renderer tokenizes this string into plain text + CitationPills.
+   */
+  prose: string;
   citations?: AskCitation[];
   streaming?: boolean;
+}
+
+/**
+ * Tokenize a prose string with `[cite:p:s]` placeholders into an array of
+ * ReactNodes — alternating plain text and `<CitationPill>` instances. Matches
+ * `CITE_RE` in `@readmaxxing/ai` exactly so server + client agree.
+ */
+export function tokenizeProse(
+  prose: string,
+  onJumpToParagraph?: (p: number) => void,
+): React.ReactNode[] {
+  if (!prose) return [];
+  const out: React.ReactNode[] = [];
+  const re = /\[cite:(\d+):(\d+)\]/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(prose)) !== null) {
+    if (match.index > last) {
+      out.push(<React.Fragment key={`t-${key}`}>{prose.slice(last, match.index)}</React.Fragment>);
+      key++;
+    }
+    const paragraphIndex = Number(match[1]);
+    const sentenceIndex = Number(match[2]);
+    out.push(
+      <CitationPill
+        key={`c-${key}`}
+        paragraphIndex={paragraphIndex}
+        sentenceIndex={sentenceIndex}
+        onClick={onJumpToParagraph ? () => onJumpToParagraph(paragraphIndex) : undefined}
+      />,
+    );
+    key++;
+    last = match.index + match[0].length;
+  }
+  if (last < prose.length) {
+    out.push(<React.Fragment key={`t-${key}`}>{prose.slice(last)}</React.Fragment>);
+  }
+  return out;
 }
 
 export function AskChat({
@@ -85,7 +135,7 @@ export function AskChat({
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el || typeof el.scrollTo !== "function") return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTo({ top: el.scrollHeight, behavior: scrollBehavior() });
   }, [messages, pending]);
 
   // Allow the parent to inject a question (e.g. from a voice transcript)
@@ -104,13 +154,13 @@ export function AskChat({
     const userMessage: Message = {
       id: `${startMs}-u`,
       role: "user",
-      text: trimmed,
+      prose: trimmed,
     };
     const assistantId = `${startMs}-a`;
     setMessages((prev) => [
       ...prev,
       userMessage,
-      { id: assistantId, role: "assistant", text: "", streaming: true },
+      { id: assistantId, role: "assistant", prose: "", streaming: true },
     ]);
     setInput("");
     setPending({ startMs, question: trimmed });
@@ -146,19 +196,36 @@ export function AskChat({
               delta?: string;
               done?: boolean;
               citations?: AskCitation[];
+              prose?: string;
               error?: string;
               message?: string;
             };
             if (msg.delta) {
               accumulated += msg.delta;
               setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, text: accumulated } : m)),
+                prev.map((m) => (m.id === assistantId ? { ...m, prose: accumulated } : m)),
               );
             }
             if (msg.done) {
               citations = msg.citations ?? [];
+              // Prefer the server-rendered prose when provided; fall back to
+              // the accumulated stream otherwise. This is the audit-C4
+              // contract: the server's precomputed prose is canonical.
+              const finalProse = typeof msg.prose === "string" ? msg.prose : accumulated;
               if (msg.error) {
                 accumulated = msg.message ?? "Couldn't reach the assistant — retry in a moment.";
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, prose: accumulated, streaming: false } : m,
+                  ),
+                );
+              } else {
+                accumulated = finalProse;
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, prose: finalProse, citations, streaming: false } : m,
+                  ),
+                );
               }
             }
           } catch {
@@ -166,16 +233,11 @@ export function AskChat({
           }
         }
       }
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId ? { ...m, text: accumulated, citations, streaming: false } : m,
-        ),
-      );
     } catch (err) {
       const fallback = "Couldn't reach the assistant — retry in a moment.";
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantId ? { ...m, text: fallback, streaming: false } : m,
+          m.id === assistantId ? { ...m, prose: fallback, streaming: false } : m,
         ),
       );
     } finally {
@@ -285,6 +347,10 @@ function ChatBubble({
   onJumpToParagraph?: (p: number) => void;
 }): React.JSX.Element {
   const isUser = message.role === "user";
+  // Tokenize the prose once per render. User messages are plain text — no
+  // citations — so the tokenizer returns the same string as a single text
+  // fragment, which is the correct behavior.
+  const nodes = tokenizeProse(message.prose, onJumpToParagraph);
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
@@ -293,8 +359,8 @@ function ChatBubble({
           isUser ? "bg-coral-bg text-white" : "bg-card-muted text-ink",
         )}
       >
-        {message.text ? (
-          <p className="whitespace-pre-wrap">{message.text}</p>
+        {message.prose ? (
+          <p className="whitespace-pre-wrap">{nodes}</p>
         ) : (
           <p className="italic text-ink-muted">Thinking…</p>
         )}

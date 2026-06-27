@@ -3,10 +3,13 @@
 /**
  * XPBar — daily-goal XP ring + level progress.
  *
- * Per DESIGN-SYSTEM §14 (data viz):
+ * Per DESIGN-SYSTEM §14 (data viz) + §25.1:
  * - Left: today's XP / daily-goal ring (coral on light, mint on
- *   completion).
+ *   completion — both via CSS vars so themes remap).
  * - Right: lifetime XP progress toward the next level.
+ *
+ * v2: SVG strokes + fill colors read CSS variables (`var(--coral-500-hex)`,
+ * `var(--mint-bg)`, `var(--success)`). **No hex literals.**
  */
 
 import * as React from "react";
@@ -49,7 +52,10 @@ export function XPBar({
   return (
     <section
       aria-label="Daily XP and level progress"
-      className={cn("rounded-lg border border-border-subtle bg-card p-4 shadow-sm", className)}
+      className={cn(
+        "rounded-card border border-border-subtle bg-card p-4 shadow-elev-1",
+        className,
+      )}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <DailyRing pct={dailyPct} todayXp={todayXp} dailyGoalXp={dailyGoalXp} />
@@ -79,7 +85,9 @@ function DailyRing({
 }): React.JSX.Element {
   const r = 24;
   const c = 2 * Math.PI * r;
-  const color = pct >= 1 ? "#1F9E5A" : "#FF5C44";
+  // CSS vars drive the stroke. E-ink maps coral-500 → grayscale so the
+  // ring stays consistent with the rest of the grayscale palette.
+  const stroke = pct >= 1 ? "var(--mint-bg)" : "var(--coral-500-hex)";
   return (
     <div className="flex items-center gap-3">
       <div className="relative inline-flex h-16 w-16 items-center justify-center" aria-hidden>
@@ -90,7 +98,7 @@ function DailyRing({
             cy="32"
             r={r}
             fill="none"
-            stroke={color}
+            stroke={stroke}
             strokeWidth="5"
             strokeDasharray={c}
             strokeDashoffset={c * (1 - pct)}
@@ -98,13 +106,13 @@ function DailyRing({
             transform="rotate(-90 32 32)"
           />
         </svg>
-        <span className="absolute tabular text-sm font-semibold">
+        <span className="absolute tabular-nums font-mono text-sm font-semibold">
           {Math.round(pct * 100)}%
         </span>
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-medium">Today's goal</p>
-        <p className="tabular text-xs text-ink-muted">
+        <p className="text-sm font-medium">Today&apos;s goal</p>
+        <p className="tabular-nums font-mono text-xs text-ink-muted">
           {todayXp.toLocaleString()} / {dailyGoalXp.toLocaleString()} XP
         </p>
         {pct >= 1 ? (
@@ -132,17 +140,17 @@ function LevelBar({
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
         <span className="font-medium">Level {level}</span>
-        <span className="tabular text-ink-muted">
+        <span className="tabular-nums font-mono text-ink-muted">
           {totalXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP
         </span>
       </div>
       <div className="h-1 w-full overflow-hidden rounded-full bg-card-muted" aria-hidden>
         <div
-          className="h-full rounded-full bg-coral-bg"
+          className="h-full rounded-full bg-coral-500"
           style={{ width: `${pct * 100}%` }}
         />
       </div>
-      <p className="mt-1 text-xs text-ink-muted">
+      <p className="mt-1 font-mono text-xs text-ink-muted">
         {(nextLevelXp - totalXp).toLocaleString()} XP to level {level + 1}
       </p>
     </div>

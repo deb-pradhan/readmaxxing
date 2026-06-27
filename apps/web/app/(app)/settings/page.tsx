@@ -12,8 +12,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, cn, type VoicePickerVoice, VoicePicker } from "@readmaxxing/ui";
+import {
+  Button,
+  Eyebrow,
+  cn,
+  type VoicePickerVoice,
+  VoicePicker,
+} from "@readmaxxing/ui";
 import { AppHeader } from "@/components/shared/AppHeader";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
 
 type Theme = "light" | "dark" | "sepia" | "eink" | "system";
@@ -83,6 +90,26 @@ export default function SettingsPage(): React.JSX.Element {
   const [savingKey, setSavingKey] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
+  /**
+   * Phase E (E.4): in-page confirmation dialogs replace every
+   * `alert()` call. Each action gets its own dialog so the title,
+   * description, and intent (`destructive` for the irreversible ones)
+   * can be tuned per action. None of these block reading flow — they
+   * only appear when the user explicitly opts in by clicking the
+   * trigger.
+   */
+  const [confirmLogOut, setConfirmLogOut] = React.useState(false);
+  const [confirmClearCache, setConfirmClearCache] = React.useState(false);
+  const [confirmExport, setConfirmExport] = React.useState(false);
+  const [info, setInfo] = React.useState<string | null>(null);
+
+  // Auto-dismiss the inline info toast after 4s.
+  React.useEffect(() => {
+    if (!info) return;
+    const id = window.setTimeout(() => setInfo(null), 4000);
+    return () => window.clearTimeout(id);
+  }, [info]);
+
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -128,10 +155,14 @@ export default function SettingsPage(): React.JSX.Element {
       <AppHeader section="Settings">
         <ThemeSwitcher />
       </AppHeader>
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+        {/* Phase F (F.2) v2 page header pattern. */}
         <header className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Settings</h1>
-          <p className="mt-2 text-base text-ink-muted">
+          <Eyebrow as="p">Settings</Eyebrow>
+          <h1 className="mt-1 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+            Settings
+          </h1>
+          <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
             Tune your reading. Changes save per section, optimistic — you can leave any time.
           </p>
         </header>
@@ -164,7 +195,7 @@ export default function SettingsPage(): React.JSX.Element {
             Linked to your Privy account. Sign out below to switch.
           </p>
         </Field>
-        <Button type="button" variant="ghost" onClick={() => alert("Logout wiring lives in the auth provider.")}>
+        <Button type="button" variant="ghost" onClick={() => setConfirmLogOut(true)}>
           Log out
         </Button>
       </Section>
@@ -393,21 +424,14 @@ export default function SettingsPage(): React.JSX.Element {
         <Button
           type="button"
           variant="secondary"
-          onClick={async () => {
-            try {
-              await indexedDB.deleteDatabase("readmaxxing");
-              alert("Local cache cleared.");
-            } catch {
-              alert("Couldn't clear the cache.");
-            }
-          }}
+          onClick={() => setConfirmClearCache(true)}
         >
           Clear local IndexedDB cache
         </Button>
         <Button
           type="button"
           variant="ghost"
-          onClick={() => alert("Data export is coming in a follow-up.")}
+          onClick={() => setConfirmExport(true)}
         >
           Download my data (coming soon)
         </Button>
@@ -457,6 +481,59 @@ export default function SettingsPage(): React.JSX.Element {
         </ul>
         </Section>
       </main>
+
+      {/* Phase E (E.4): in-page confirmation dialogs. Each destructive
+          action gets its own `ConfirmDialog` so the title, description,
+          and intent stay tuned to the action. Default focus lands on
+          Cancel; the Confirm button is `secondary` (not coral) for the
+          destructive ones so it doesn't read as triumphant (D31). */}
+      <ConfirmDialog
+        open={confirmLogOut}
+        onOpenChange={setConfirmLogOut}
+        title="Log out of ReadMaxxing?"
+        description="You'll need to sign back in to access your library and reading progress."
+        confirmLabel="Log out"
+        intent="destructive"
+        onConfirm={() => {
+          // Real logout wiring lives in the auth provider. Until it
+          // ships we surface a friendly note rather than a dev-coded
+          // `alert()`.
+          setInfo("Logout is wired in the auth provider.");
+        }}
+      />
+      <ConfirmDialog
+        open={confirmClearCache}
+        onOpenChange={setConfirmClearCache}
+        title="Clear local IndexedDB cache?"
+        description="This removes downloaded audio and offline reading state from this device. Your library and cloud positions are not affected."
+        confirmLabel="Clear cache"
+        intent="destructive"
+        onConfirm={async () => {
+          try {
+            await indexedDB.deleteDatabase("readmaxxing");
+            setInfo("Local cache cleared.");
+          } catch {
+            setError("Couldn't clear the cache.");
+          }
+        }}
+      />
+      <ConfirmDialog
+        open={confirmExport}
+        onOpenChange={setConfirmExport}
+        title="Data export isn't available yet"
+        description="Exporting your library and reading history is coming in a follow-up. We'll let you know when it ships."
+        confirmLabel="Got it"
+        intent="default"
+      />
+
+      {info ? (
+        <p
+          role="status"
+          className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-md border border-border bg-card px-4 py-2 text-sm text-ink shadow-soft"
+        >
+          {info}
+        </p>
+      ) : null}
     </div>
   );
 }

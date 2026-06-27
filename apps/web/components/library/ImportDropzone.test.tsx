@@ -1,15 +1,26 @@
 /**
  * ImportDropzone component tests — paste handler parses text and POSTs.
+ *
+ * Audit C1 (Phase C): POST `/api/import` returns 201 with `{ documentId }`
+ * (and a deprecated `id` alias for one release). The dropzone must read
+ * `documentId` and call `router.push(`/reader/${documentId}`)`.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent, screen, act } from "@testing-library/react";
 import * as React from "react";
 import { ImportDropzone } from "./ImportDropzone";
 
-// Mock the Next router since the component uses router.push on import.
+// Mock the Next router so we can capture push() calls (audit C1 verification).
+const routerPushMock = vi.fn();
+const routerReplaceMock = vi.fn();
+const routerPrefetchMock = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({
+    push: routerPushMock,
+    replace: routerReplaceMock,
+    prefetch: routerPrefetchMock,
+  }),
 }));
 
 function makeFile(name: string, sizeBytes: number, type: string): File {
@@ -20,18 +31,29 @@ function makeFile(name: string, sizeBytes: number, type: string): File {
 }
 
 describe("ImportDropzone", () => {
+  beforeEach(() => {
+    routerPushMock.mockReset();
+    routerReplaceMock.mockReset();
+    routerPrefetchMock.mockReset();
+  });
+
   it("renders the empty drop zone with a Choose file button", () => {
     const { getByText } = render(<ImportDropzone />);
     expect(getByText(/drop a file or paste a screenshot/i)).toBeInTheDocument();
     expect(getByText(/choose file/i)).toBeInTheDocument();
   });
 
-  it("POSTs pasted text to /api/import", async () => {
+  it("uses documentId from the response and routes to /reader/[id] (audit C1)", async () => {
     const fetchMock = vi.fn(async () =>
-      new Response(JSON.stringify({ id: "doc-1", title: "Pasted text", status: "parsed" }), {
-        status: 201,
-        headers: { "Content-Type": "application/json" },
-      }),
+      new Response(
+        JSON.stringify({
+          documentId: "doc-1",
+          id: "doc-1", // deprecated alias — must remain accepted
+          title: "Pasted text",
+          status: "parsed",
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const { container } = render(<ImportDropzone />);
@@ -47,13 +69,36 @@ describe("ImportDropzone", () => {
       value: clipboardData,
     });
     fireEvent(region!, pasteEvent);
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 30));
     expect(fetchMock).toHaveBeenCalled();
-    const firstCall = fetchMock.mock.calls[0] as
-      | [unknown, RequestInit?]
-      | undefined;
-    const url = firstCall?.[0];
-    expect(url).toBe("/api/import");
+    expect(routerPushMock).toHaveBeenCalledWith("/reader/doc-1");
+  });
+
+  it("falls back to legacy `id` field when `documentId` is absent", async () => {
+    // Some older deploys / extension consumers may still only emit `id`. The
+    // client must tolerate that for one release (audit C1).
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ id: "legacy-id", title: "Old", status: "parsed" }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const { container } = render(<ImportDropzone />);
+    const region = container.querySelector<HTMLElement>("[role='region']");
+    expect(region).not.toBeNull();
+    const clipboardData = {
+      getData: (mime: string) => (mime === "text/plain" ? "Hello world." : ""),
+    };
+    const pasteEvent = new Event("paste", { bubbles: true }) as Event & {
+      clipboardData: typeof clipboardData;
+    };
+    Object.defineProperty(pasteEvent, "clipboardData", {
+      value: clipboardData,
+    });
+    fireEvent(region!, pasteEvent);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(routerPushMock).toHaveBeenCalledWith("/reader/legacy-id");
   });
 
   it("accepts image files and routes them to /api/import/ocr", async () => {

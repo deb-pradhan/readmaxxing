@@ -12,7 +12,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Button, cn } from "@readmaxxing/ui";
+import {
+  Button,
+  Eyebrow,
+  StatusPill,
+  cn,
+  type StatusPillStatus,
+  scrollBehavior,
+} from "@readmaxxing/ui";
 import { AskChat } from "@/components/ai/AskChat";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { AppHeader } from "@/components/shared/AppHeader";
@@ -43,6 +50,21 @@ interface TranscriptResponse {
   durationSeconds: number;
   lineCount: number;
   lines: TranscriptLine[];
+}
+
+/**
+ * Map a `PodcastEpisodeStatus` enum value to a StatusPill status.
+ *
+ * Phase E (E.3): the prior "still being produced" copy leaked the raw
+ * enum token (`reading_doc`) and the failure branch said "Come back
+ * in a few minutes." StatusPill gives a copy-stable label, and we
+ * promise the email notification (D15) instead of guessing time.
+ */
+function episodeStatusToPill(status: string): StatusPillStatus {
+  if (status === "completed") return "ready";
+  if (status === "failed") return "error";
+  if (status === "queued") return "queued";
+  return "rendering";
 }
 
 export default function EpisodePage(): React.JSX.Element {
@@ -153,7 +175,7 @@ export default function EpisodePage(): React.JSX.Element {
       else break;
     }
     const el = root.querySelector<HTMLElement>(`[data-line-index="${activeIdx}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    el?.scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
   }, [currentTime, transcript]);
 
   if (loadError) {
@@ -162,7 +184,7 @@ export default function EpisodePage(): React.JSX.Element {
         <AppHeader section="Podcast">
           <ThemeSwitcher />
         </AppHeader>
-        <main className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-20 text-center sm:px-6">
+        <main id="main" className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-20 text-center sm:px-6">
           <p className="text-sm text-danger">{loadError}</p>
           <Link
             href="/podcasts"
@@ -181,7 +203,7 @@ export default function EpisodePage(): React.JSX.Element {
         <AppHeader section="Podcast">
           <ThemeSwitcher />
         </AppHeader>
-        <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
           <div className="h-9 w-2/3 animate-pulse rounded-md bg-card-muted" />
           <div className="mt-3 h-4 w-32 animate-pulse rounded bg-card-muted" />
           <div className="mt-8 space-y-3 rounded-lg border border-border-subtle bg-card p-5 sm:p-6">
@@ -195,22 +217,33 @@ export default function EpisodePage(): React.JSX.Element {
   }
 
   if (episode.status !== "completed") {
+    const pillStatus = episodeStatusToPill(episode.status);
     return (
       <div className="min-h-dvh">
         <AppHeader section="Podcast">
           <ThemeSwitcher />
         </AppHeader>
-        <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-          <p className="text-xs font-medium uppercase tracking-widest text-ink-muted">
-            {episode.podcast?.style?.replace("_", " ") ?? "podcast"}
-          </p>
-          <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">
-            {episode.title}
-          </h1>
-          <div className="mt-8 rounded-lg border border-border-subtle bg-card p-5 text-center sm:p-6">
-            <p className="text-sm text-ink-muted">
-              This episode is still being produced ({episode.status}). Come back in a few
-              minutes.
+        <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+          {/* Phase F (F.2) v2 page header pattern. */}
+          <header>
+            <Eyebrow as="p">{episode.podcast?.style?.replace("_", " ") ?? "podcast"}</Eyebrow>
+            <h1 className="mt-2 break-words text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+              {episode.title}
+            </h1>
+          </header>
+          <div className="mt-8 rounded-lg border border-border-subtle bg-card p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <StatusPill status={pillStatus} />
+              <span className="text-sm font-medium text-ink">
+                {pillStatus === "error"
+                  ? "Couldn't finish this episode."
+                  : "Producing this episode."}
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-ink-muted">
+              {pillStatus === "error"
+                ? "Something went wrong while generating this episode. You can try generating it again."
+                : "We'll email you when this episode is ready."}
             </p>
             <Link
               href="/podcasts"
@@ -237,7 +270,7 @@ export default function EpisodePage(): React.JSX.Element {
         <ThemeSwitcher />
       </AppHeader>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-40 pt-8 sm:px-6 sm:pt-10">
+      <main id="main" className="mx-auto w-full max-w-3xl px-4 pb-40 pt-8 sm:px-6 sm:pt-10">
         <Link
           href="/podcasts"
           className="inline-flex items-center text-sm font-medium text-ink-muted transition-colors hover:text-ink"
@@ -245,14 +278,13 @@ export default function EpisodePage(): React.JSX.Element {
           ← All podcasts
         </Link>
 
+        {/* Phase F (F.2) v2 page header pattern. */}
         <header className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-widest text-ink-muted">
-            {episode.podcast?.style?.replace("_", " ") ?? "podcast"}
-          </p>
-          <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">
+          <Eyebrow as="p">{episode.podcast?.style?.replace("_", " ") ?? "podcast"}</Eyebrow>
+          <h1 className="mt-2 break-words text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
             {episode.title}
           </h1>
-          <p className="mt-2 text-sm text-ink-muted">
+          <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
             {formatTime(duration || episode.durationSeconds)} · Listen, follow along, and ask
             the hosts anything.
           </p>

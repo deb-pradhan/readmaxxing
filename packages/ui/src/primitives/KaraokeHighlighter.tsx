@@ -4,21 +4,28 @@
  * KaraokeHighlighter — sentence tint + word fill, advanced by
  * `currentWordIndex`.
  *
- * Per DESIGN-SYSTEM §3 (color tokens), §4 (type), §5 (icons):
- * - Two-level emphasis: current sentence gets a soft coral tint
- *   background, current word gets a stronger coral fill. Two levels
- *   lock the eye without strobing the page.
- * - Highlight transitions advance at 120ms (motion-highlight token).
- * - `prefers-reduced-motion` collapses the transition to instant.
- * - Click any word to jump — `onWordClick(index)` bubbles up.
- * - Sentence change is announced via a polite live region for screen
- *   readers (DESIGN-SYSTEM §19.3).
- * - Each word renders `<span data-word-idx={i}>`, each sentence
- *   `<span data-sentence-key data-current-sentence>`, and the active
- *   word `<span data-current-word>` so the page can wire click-to-jump,
- *   auto-scroll, and CSS hooks directly.
+ * Per DESIGN-SYSTEM §3 (color tokens), §4 (type), §5 (icons),
+ * §25.6 + §25.9 (reader rendering), and UI-UX-AUDIT C3:
+ * - **Every word is a plain `<span>`.** No `role="button"`, no
+ *   `tabIndex`. The container carries **one** delegated `onClick`
+ *   that resolves the closest `[data-global-index]` ancestor.
+ * - The active word swap is **color + bg only** — no font-weight
+ *   change, no layout shift. The active word carries
+ *   `aria-current="true"` so screen readers can announce it.
+ * - Two-level emphasis: current sentence gets a soft coral tint,
+ *   current word gets a stronger coral fill. Two levels lock the
+ *   eye without strobing the page.
+ * - `prefers-reduced-motion` is honored (CSS handles the transition;
+ *   the rAF loop is not consumed here, but downstream consumers
+ *   should gate on matchMedia before scheduling).
+ * - The container is the single focusable reading region; the polite
+ *   live region (`rmx-live`) announces the current sentence for
+ *   screen readers per §19.3.
+ * - Inter is the only type family — no serif. Body 15px, line-height
+ *   1.5.
  *
- * Inter is the only type family — no serif. Body 15px, line-height 1.5.
+ * Cross-surface contract (pinned by `cross-surface.test.tsx`):
+ *   data-word-idx, data-current-word, data-current-sentence, rmx-live.
  */
 
 import * as React from "react";
@@ -75,12 +82,44 @@ function bionicSplit(word: string, fixation = 0.4): { lead: string; rest: string
   return { lead: word.slice(0, cut), rest: word.slice(cut) };
 }
 
+function textBetween(
+  sentenceText: string,
+  sentenceStart: number,
+  word: Word,
+  words: ReadonlyArray<Word>,
+): React.ReactNode {
+  const idx = words.findIndex((w) => w.start === word.start && w.end === word.end);
+  const next = words[idx + 1];
+  if (!next) return "";
+  // word/next offsets are global (into the whole document); sentenceText is a
+  // local substring, so rebase the slice by the sentence's start offset.
+  return sentenceText.slice(word.end - sentenceStart, next.start - sentenceStart);
+}
+
+const BionicWord = React.memo(function BionicWord({ word }: { word: string }) {
+  const { lead, rest } = bionicSplit(word);
+  return (
+    <>
+      <strong className="font-bold">{lead}</strong>
+      <span>{rest}</span>
+    </>
+  );
+});
+
 export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighlighterProps>(
   function KaraokeHighlighter(
     { tree, currentWordIndex, onWordClick, bionicReading = false, focusMode = false, className },
     ref,
   ) {
     const flat = React.useMemo(() => flatten(tree), [tree]);
+    // Precomputed map from each word's global `start` offset → its
+    // globalIndex in the flat list. O(1) lookup replaces the old
+    // `flat.find()` per word, which was O(n²) for the whole document.
+    const wordIndexByStart = React.useMemo(() => {
+      const m = new Map<number, number>();
+      for (const fw of flat) m.set(fw.word.start, fw.globalIndex);
+      return m;
+    }, [flat]);
     const currentFlat = currentWordIndex >= 0 ? flat[currentWordIndex] : null;
     const currentSentenceKey = currentFlat?.sentenceKey ?? "";
     const currentParagraphIndex = currentFlat?.paragraphIndex ?? -1;
@@ -100,8 +139,30 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
       return "";
     }, [currentFlat, currentParagraphIndex, currentSentenceKey, tree]);
 
+    /**
+     * Delegated click handler — resolves the closest `[data-global-index]`
+     * ancestor and bubbles the index up. Replaces the per-word click +
+     * keyboard handler that the audit flagged (C3 — every word was a
+     * focusable button).
+     */
+    const handleContainerClick = React.useCallback(
+      (event: React.MouseEvent<HTMLDivElement>) => {
+        if (!onWordClick) return;
+        const target = event.target as HTMLElement | null;
+        const wordEl = target?.closest("[data-global-index]") as HTMLElement | null;
+        if (!wordEl) return;
+        const idx = Number(wordEl.dataset.globalIndex);
+        if (Number.isFinite(idx)) onWordClick(idx);
+      },
+      [onWordClick],
+    );
+
     return (
-      <div ref={ref} className={cn("reading-column mx-auto", className)}>
+      <div
+        ref={ref}
+        className={cn("reading-column mx-auto", className)}
+        onClick={handleContainerClick}
+      >
         {/* Polite live region — DESIGN-SYSTEM §19.3: announce current
             sentence for BR + screen-reader users. */}
         <div className="rmx-live" aria-live="polite" aria-atomic="true">
@@ -119,6 +180,9 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
             | "h2"
             | "h3"
             | "p";
+          // Phase D P1 (D.9): reading column measure + leading.
+          // 45–70ch at 18px / line-height clamp(1.5, 1.5 + 0.05vw, 1.6)
+          // — tighter than the old 17px @ 1.85, easier on the eye.
           const blockClass =
             level === 1
               ? "mt-10 mb-4 text-2xl font-bold leading-tight tracking-tight first:mt-0 sm:text-3xl"
@@ -126,10 +190,11 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
                 ? "mt-10 mb-3 text-xl font-bold leading-snug tracking-tight first:mt-0 sm:text-2xl"
                 : level >= 3
                   ? "mt-8 mb-2 text-lg font-semibold leading-snug tracking-tight first:mt-0"
-                  : "mb-5 text-[1.0625rem] leading-[1.85] text-ink";
+                  : "mb-5 text-[18px] leading-[clamp(1.5,1.5+0.05vw,1.6)] text-ink";
           return (
             <Tag
               key={paragraph.index}
+              id={`paragraph-${paragraph.index}`}
               className={cn(
                 blockClass,
                 dim && "opacity-30 transition-opacity",
@@ -169,39 +234,24 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
                   >
                     {leadingGap}
                     {sentence.words.map((word) => {
-                      const globalIdx = flat.find(
-                        (f) => f.word.start === word.start && f.word.end === word.end,
-                      )?.globalIndex;
+                      // O(1) lookup against the precomputed global map.
+                      const globalIdx = wordIndexByStart.get(word.start);
                       const active = globalIdx === currentWordIndex;
                       return (
                         <span
                           key={`${word.start}-${word.end}`}
-                          role="button"
-                          tabIndex={0}
-                          aria-current={active ? "true" : undefined}
                           data-word-idx={globalIdx}
+                          data-global-index={globalIdx}
                           data-current-word={active ? "true" : "false"}
+                          aria-current={active ? "true" : undefined}
                           className={cn(
                             "cursor-pointer rounded-[5px] transition-colors duration-highlight ease-out",
-                            "focus-visible:outline-none focus-visible:shadow-focus",
                             // Soft tint highlight with breathing room but no
                             // layout shift (padding offset by negative margin;
                             // box-decoration-break keeps it tidy across wraps).
                             active &&
-                              "-mx-0.5 bg-coral-bg/20 px-0.5 font-semibold text-coral-text [-webkit-box-decoration-break:clone] [box-decoration-break:clone]",
+                              "-mx-0.5 bg-coral-bg/20 px-0.5 text-coral-text [-webkit-box-decoration-break:clone] [box-decoration-break:clone]",
                           )}
-                          onClick={() => {
-                            if (typeof globalIdx === "number" && onWordClick) onWordClick(globalIdx);
-                          }}
-                          onKeyDown={(e) => {
-                            if (
-                              (e.key === "Enter" || e.key === " ") &&
-                              typeof globalIdx === "number"
-                            ) {
-                              e.preventDefault();
-                              onWordClick?.(globalIdx);
-                            }
-                          }}
                         >
                           {bionicReading ? <BionicWord word={word.text} /> : word.text}
                           {/* Preserve the source spacing exactly. */}
@@ -222,27 +272,3 @@ export const KaraokeHighlighter = React.forwardRef<HTMLDivElement, KaraokeHighli
     );
   },
 );
-
-function textBetween(
-  sentenceText: string,
-  sentenceStart: number,
-  word: Word,
-  words: ReadonlyArray<Word>,
-): React.ReactNode {
-  const idx = words.findIndex((w) => w.start === word.start && w.end === word.end);
-  const next = words[idx + 1];
-  if (!next) return "";
-  // word/next offsets are global (into the whole document); sentenceText is a
-  // local substring, so rebase the slice by the sentence's start offset.
-  return sentenceText.slice(word.end - sentenceStart, next.start - sentenceStart);
-}
-
-const BionicWord = React.memo(function BionicWord({ word }: { word: string }) {
-  const { lead, rest } = bionicSplit(word);
-  return (
-    <>
-      <strong className="font-bold">{lead}</strong>
-      <span>{rest}</span>
-    </>
-  );
-});

@@ -9,16 +9,18 @@
  *   - Body 15px, line-height 1.5.
  *   - Coral sentence tint + coral word fill for karaoke.
  *   - Fixed bottom player bar.
- *   - The light-mode canvas is the M-Chef neutral #ECEFE6 (see
- *     DESIGN-SYSTEM §3 tokens).
+ *   - The light-mode canvas is the M-Chef warm-paper neutral (see
+ *     DESIGN-SYSTEM §3 tokens + §25.1).
  */
 
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { SegmentTree, SpeechMark } from "@readmaxxing/core";
-import { Button } from "@readmaxxing/ui";
-import { DEFAULT_ELEVENLABS_VOICE_ID } from "@readmaxxing/tts";
+import { MediaSessionWrapper } from "@readmaxxing/core";
+import { Button, Eyebrow } from "@readmaxxing/ui";
+import { scrollCurrentSentenceIntoView, scrollBehavior } from "@readmaxxing/ui";
+import { DEFAULT_ELEVENLABS_VOICE_ID, resolveVoiceName } from "@readmaxxing/tts";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { ReaderColumn } from "@/components/reader/ReaderColumn";
 import { ProgressRail } from "@/components/reader/ProgressRail";
@@ -27,6 +29,7 @@ import { SelectionMenu } from "@/components/reader/SelectionMenu";
 import { SummaryPanel } from "@/components/ai/SummaryPanel";
 import { QuizCard } from "@/components/ai/QuizCard";
 import { AskChat } from "@/components/ai/AskChat";
+import { Coachmarks } from "@/components/onboarding/Coachmarks";
 import { usePlayerStore } from "@/stores/player-store";
 import { clientSynthesize } from "@/lib/tts/client";
 import { makePosition, WORDS_PER_MINUTE } from "@readmaxxing/core";
@@ -102,7 +105,8 @@ function ReaderToggle({
       aria-label={label}
       title={label}
       className={
-        "inline-flex h-10 w-10 items-center justify-center rounded-md border transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:shadow-focus " +
+        // Phase D P1 (D.11): ≥44px touch target. Was 40×40.
+        "inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:shadow-focus " +
         (active
           ? "border-coral-bg bg-coral-bg text-white"
           : "border-border bg-card text-ink-muted hover:bg-card-muted hover:text-ink")
@@ -127,6 +131,13 @@ export default function ReaderPage(): React.JSX.Element {
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [marks, setMarks] = React.useState<SpeechMark[]>([]);
   const [audioRef, setAudioRef] = React.useState<HTMLAudioElement | null>(null);
+  // Phase D P1 (D.1): MediaSession wire. The wrapper is feature-checked
+  // (it's a no-op when `navigator.mediaSession` is absent), so we always
+  // instantiate it. We use a ref so the same instance lives across renders.
+  const mediaSessionRef = React.useRef<MediaSessionWrapper | null>(null);
+  if (mediaSessionRef.current === null) {
+    mediaSessionRef.current = new MediaSessionWrapper();
+  }
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [selectionRect, setSelectionRect] = React.useState<DOMRect | null>(null);
   const [selectionText, setSelectionText] = React.useState<string>("");
@@ -237,20 +248,23 @@ export default function ReaderPage(): React.JSX.Element {
     return timeline;
   }, [flatWords, marks]);
 
-  // Keep the active word in view — scroll only when it drifts out of the
-  // comfortable middle band, so the page glides with the audio (line focus)
-  // without jittering on every word.
+  // Phase D P1 (D.10): collapse the dual karaoke scroller to the
+  // sentence-anchored one (Phase B's helper). Previously the page had
+  // both a word/center scroller (this effect) and the sentence/start
+  // helper exposed by Phase B's ReaderColumn; we now use ONLY the
+  // sentence helper. Sentence anchors land the active sentence in the
+  // upper third of the viewport — better line focus for the reader.
+  // Smooth scroll is gated on prefers-reduced-motion inside the helper.
   React.useEffect(() => {
-    if (currentWordIndex < 0) return;
-    const el = document.querySelector<HTMLElement>('[data-current-word="true"]');
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const vh = window.innerHeight || document.documentElement.clientHeight;
-    if (rect.top < vh * 0.22 || rect.bottom > vh * 0.8) {
-      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
-    }
-  }, [currentWordIndex]);
+    if (!tree || currentWordIndex < 0) return;
+    const anchor = findActiveSentenceByWord(tree, currentWordIndex);
+    if (!anchor) return;
+    scrollCurrentSentenceIntoView({
+      container: window,
+      paragraphIndex: anchor.paragraphIndex,
+      upperThird: true,
+    });
+  }, [tree, currentWordIndex]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -347,6 +361,107 @@ export default function ReaderPage(): React.JSX.Element {
       audio.pause();
     }
   }, [playing, audioUrl, audioRef, pausePlayback]);
+
+  // Phase D P1 (D.1): Media Session wire. Push the track metadata to the
+  // OS chrome as soon as we know the title + audio URL, then register
+  // action handlers so the OS media keys (lock screen, headphones, etc.)
+  // control playback. The wrapper is a no-op when `mediaSession` is
+  // unavailable (Firefox desktop, jsdom, etc.).
+  React.useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const ms = mediaSessionRef.current;
+    if (!ms) return;
+    ms.setMetadata({
+      title,
+      artist: "ReadMaxxing",
+      album: "Voice library",
+    });
+    ms.setActionHandlers({
+      play: () => togglePlay(),
+      pause: () => pausePlayback(),
+      seekbackward: () => {
+        const audio = audioRef;
+        if (!audio) return;
+        audio.currentTime = Math.max(0, audio.currentTime - 15);
+      },
+      seekforward: () => {
+        const audio = audioRef;
+        if (!audio || !Number.isFinite(audio.duration)) return;
+        audio.currentTime = Math.min(
+          audio.duration,
+          audio.currentTime + 15,
+        );
+      },
+      seekto: (details) => {
+        const audio = audioRef;
+        if (!audio || !Number.isFinite(details.seekTime ?? NaN)) return;
+        audio.currentTime = Math.max(
+          0,
+          Math.min(details.seekTime as number, audio.duration || Infinity),
+        );
+      },
+    });
+  }, [title, audioRef, togglePlay, pausePlayback]);
+
+  // Phase D P1 (D.1): keep MediaSession playbackState in sync with the
+  // actual <audio> element. Mirrors the existing status state so the
+  // OS lock screen shows play/pause correctly.
+  React.useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    mediaSessionRef.current?.setPlaybackState(playing ? "playing" : "paused");
+  }, [playing]);
+
+  // Audit C2 (Phase C P0): when the user changes `speed` from the player
+  // chrome, we must re-apply it to the live <audio> element. Previously the
+  // rate was only set once on `loadedmetadata`, so changes were silently
+  // dropped until the next reload. We also persist the change (debounced) so
+  // the next visit picks up where the user left off.
+  React.useEffect(() => {
+    const audio = audioRef;
+    if (!audio) return;
+    audio.playbackRate = speed;
+  }, [speed, audioRef]);
+
+  // Debounced persistence of `speed` to the user prefs endpoint. We coalesce
+  // rapid up/down keystrokes into a single PATCH so we don't spam the BFF.
+  React.useEffect(() => {
+    const id = window.setTimeout(() => {
+      void fetch("/api/user/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ defaultSpeed: speed }),
+      }).catch(() => undefined);
+    }, 600);
+    return () => window.clearTimeout(id);
+  }, [speed]);
+
+  // Hydrate `speed` from the persisted user preference on mount. First-time
+  // users keep the default `1.0`; the server returns `defaultSpeed` from
+  // `UserPreference.prefs` when one was previously saved.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/user/preferences", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const prefs = (await res.json()) as { defaultSpeed?: number };
+        if (cancelled) return;
+        if (typeof prefs.defaultSpeed === "number" && Number.isFinite(prefs.defaultSpeed)) {
+          const clamped = Math.max(0.5, Math.min(4.5, prefs.defaultSpeed));
+          if (clamped !== speed) setSpeed(clamped);
+        }
+      } catch {
+        // Silent — first-paint defaults are fine when prefs are unavailable.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Honest elapsed-time counter while audio is being generated (UI-UX §10 —
   // no fake "2 seconds"). Resets when synthesis finishes.
@@ -614,7 +729,7 @@ export default function ReaderPage(): React.JSX.Element {
 
   if (pageError) {
     return (
-      <main className="mx-auto w-full max-w-reading px-4 py-16">
+      <main id="main" className="mx-auto w-full max-w-reading px-4 py-16">
         <h1 className="text-2xl font-semibold">Couldn&apos;t load this reader</h1>
         <p className="mt-3 text-ink-muted">{pageError}</p>
         <Button
@@ -632,7 +747,7 @@ export default function ReaderPage(): React.JSX.Element {
 
   if (!tree) {
     return (
-      <main className="mx-auto w-full max-w-reading px-4 py-16">
+      <main id="main" className="mx-auto w-full max-w-reading px-4 py-16">
         <p className="text-sm text-ink-muted">Loading document…</p>
       </main>
     );
@@ -647,14 +762,26 @@ export default function ReaderPage(): React.JSX.Element {
   );
 
   return (
-    <main className="relative">
+    <main id="main" className="relative">
       <ProgressRail percent={percent} minutesLeft={minutesLeft} />
       <ReadingRuler active={lineGuide} />
 
-      <header className="mx-auto flex w-full max-w-reading flex-col gap-3 px-4 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
+      <header
+        // Phase D P1 (D.4): coachmarks anchor target. The first two coachmark
+        // steps ("play" + "speed") point here so the popover lines up next
+        // to the actual controls instead of floating in empty space.
+        data-coachmark-target="reader-toolbar"
+        className="mx-auto flex w-full max-w-reading flex-col gap-3 px-4 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10"
+      >
+        {/* Phase F (F.2): v2 page header pattern — Eyebrow first,
+            then Display-1 (clamped) for the doc title. The reader is
+            special: it doesn't expose a page-level <h1> (the chrome
+            header lives inside the reader surface, not the document
+            chrome), so we use the title here as the Display-1 — it's
+            the largest thing on screen and earns the visual weight. */}
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-widest text-ink-muted">Now playing</p>
-          <h1 className="mt-1 truncate text-xl font-semibold tracking-tight sm:text-2xl">
+          <Eyebrow as="p">Now playing</Eyebrow>
+          <h1 className="mt-1 line-clamp-2 break-words text-[clamp(28px,7vw,44px)] font-extrabold leading-[1.05] tracking-[-0.035em]">
             {title}
           </h1>
         </div>
@@ -710,8 +837,14 @@ export default function ReaderPage(): React.JSX.Element {
           audio.playbackRate = speed;
           setDuration(audio.duration);
         }}
-        onPlay={() => setStatus("playing")}
-        onPause={() => setStatus("paused")}
+        onPlay={() => {
+          setStatus("playing");
+          mediaSessionRef.current?.setPlaybackState("playing");
+        }}
+        onPause={() => {
+          setStatus("paused");
+          mediaSessionRef.current?.setPlaybackState("paused");
+        }}
         onEnded={() => {
           pausePlayback();
           setStatus("ended");
@@ -765,7 +898,7 @@ export default function ReaderPage(): React.JSX.Element {
         }}
         onSpeedChange={setSpeed}
         onShowHelp={() => setHelpOpen(true)}
-        voiceLabel={voiceFromQuery}
+        voiceLabel={resolveVoiceName(voiceFromQuery) ?? "Default voice"}
         onSkipFillers={toggleSkipFiller}
       />
       {skipFillerEnabled ? (
@@ -807,6 +940,10 @@ export default function ReaderPage(): React.JSX.Element {
       ) : null}
 
       <KeyboardShortcuts open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* Phase D P1 (D.4): mount the first-run coachmarks tour. The
+          Coachmarks component self-gates on session count + lazy-mounts
+          after the first scroll, so it doesn't fight the reader chrome. */}
+      <Coachmarks />
     </main>
   );
 }
@@ -829,7 +966,11 @@ function AiSurface({
     const el = document.querySelector<HTMLElement>(
       `[data-paragraph-index="${paragraphIndex}"]`,
     );
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!el) return;
+    // Phase E (E.6): gate the smooth-scroll animation on the user's
+    // reduced-motion preference. Reduced-motion users get an instant
+    // jump (`behavior: "auto"`) instead of the animated transition.
+    el.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
   }
 
   return (
@@ -862,7 +1003,8 @@ function AiSurface({
           type="button"
           onClick={onClose}
           aria-label="Close AI surface"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted"
+          // Phase D P1 (D.11): ≥44px touch target. Was 36×36.
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted"
         >
           ✕
         </button>

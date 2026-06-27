@@ -15,7 +15,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, cn } from "@readmaxxing/ui";
+import { Button, Eyebrow, StatusPill, cn, type StatusPillStatus } from "@readmaxxing/ui";
 import { PodcastCreator, PODCAST_STYLES } from "@/components/ai/PodcastCreator";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
@@ -56,6 +56,21 @@ const STYLE_ACCENT: Record<string, string> = {
   debate: "bg-coral-soft text-coral-text",
   lecture: "bg-lavender-soft text-lavender-text",
 };
+
+/**
+ * Map a `PodcastEpisodeStatus` enum value to a StatusPill status.
+ *
+ * Phase E (E.3): the prior feed leaked the raw enum tokens
+ * (`reading_doc`, `writing_script`, etc.). StatusPill maps them to
+ * deterministic, copy-stable labels and a tone; the producing card
+ * below also surfaces "Rendering" for any in-progress stage.
+ */
+function episodeStatusToPill(status: string): StatusPillStatus {
+  if (status === "completed") return "ready";
+  if (status === "failed") return "error";
+  if (status === "queued") return "queued";
+  return "rendering";
+}
 
 export default function PodcastsPage(): React.JSX.Element {
   const [episodes, setEpisodes] = React.useState<EpisodeRow[] | null>(null);
@@ -131,14 +146,18 @@ export default function PodcastsPage(): React.JSX.Element {
         <ThemeSwitcher />
       </AppHeader>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <main id="main" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        {/* Phase F (F.2) v2 page header pattern. */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Podcasts</h1>
-            <p className="mt-2 text-base text-ink-muted">
+          <header>
+            <Eyebrow as="p">Podcasts</Eyebrow>
+            <h1 className="mt-2 text-[clamp(34px,8vw,52px)] font-extrabold leading-[1] tracking-[-0.035em]">
+              Podcasts
+            </h1>
+            <p className="mt-3 text-[17px] font-medium leading-snug text-ink-muted sm:text-[18px]">
               Short audio shows generated from your documents.
             </p>
-          </div>
+          </header>
           <Button
             type="button"
             variant={creatorOpen ? "secondary" : "primary"}
@@ -314,13 +333,10 @@ function EpisodeCard({
 function ProducingCard({ episode }: { episode: EpisodeRow }): React.JSX.Element {
   return (
     <article className="flex h-full flex-col gap-3 rounded-lg border border-dashed border-border bg-card p-5">
-      <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-card-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-ink-muted">
-        <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-coral-bg" />
-        Producing
-      </span>
+      <StatusPill status={episodeStatusToPill(episode.status)} />
       <h3 className="break-words text-md font-semibold leading-snug text-ink">{episode.title}</h3>
-      <p className="tabular text-xs text-ink-muted">
-        Status: <strong className="font-semibold text-ink">{episode.status}</strong>
+      <p className="text-xs text-ink-muted">
+        We&apos;ll email you when this episode is ready.
       </p>
       <Link
         href={`/podcasts/${episode.id}`}
