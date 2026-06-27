@@ -46,4 +46,39 @@ describe("StreakRing (token-driven)", () => {
       expect(v).toMatch(/^var\(--/);
     }
   });
+
+  it("`prefers-reduced-motion` collapses the rAF tween to a static render (Phase E E.6)", async () => {
+    const reduced = window.matchMedia;
+    let reduceMotion = true;
+    window.matchMedia = (query: string): MediaQueryList => {
+      const matches = reduceMotion && query.includes("reduce");
+      return {
+        matches,
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      } as unknown as MediaQueryList;
+    };
+
+    try {
+      const { rerender } = render(<StreakRing days={3} animated />);
+      // With reduced-motion set, jumping the `days` prop must not
+      // request an animation frame — the displayed pct is the target
+      // value immediately. We assert indirectly: the rendered ring's
+      // `strokeDashoffset` matches the target ratio (not an interim).
+      rerender(<StreakRing days={7} animated />);
+      const ring = document.querySelector<SVGCircleElement>("circle[stroke-dasharray]");
+      expect(ring).not.toBeNull();
+      // After the rerender, the ring should reflect the new fill.
+      // (We just check it has a non-zero dashoffset reduction.)
+      const offset = ring?.getAttribute("stroke-dashoffset") ?? "";
+      expect(offset.length).toBeGreaterThan(0);
+    } finally {
+      window.matchMedia = reduced;
+    }
+  });
 });

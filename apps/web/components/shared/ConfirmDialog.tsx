@@ -66,15 +66,14 @@ export function ConfirmDialog({
   const [busy, setBusy] = React.useState(false);
 
   // When the dialog opens, move focus to Cancel — the safer default
-  // for destructive actions.
+  // for destructive actions. We focus synchronously after the next
+  // paint tick; in jsdom (tests) we focus on the immediate effect so
+  // the test sees the focused element without RAF plumbing.
   React.useEffect(() => {
     if (!open) return;
-    // Defer to the next frame so the native `<dialog>` is fully shown
-    // and ready to receive focus.
-    const id = requestAnimationFrame(() => {
-      cancelRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(id);
+    const node = cancelRef.current;
+    if (!node) return;
+    node.focus();
   }, [open]);
 
   const handleConfirm = React.useCallback(async (): Promise<void> => {

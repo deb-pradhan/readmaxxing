@@ -208,3 +208,143 @@ describe("applyLibraryFilter (regression guard)", () => {
     expect(out.map((d) => d.id)).toEqual(["1"]);
   });
 });
+
+describe("LibraryPage (Phase E — E.8 recap card + E.10 sample lock)", () => {
+  function makeDocs(): Response {
+    const docs = [
+      {
+        id: "d1",
+        title: "A pasted note",
+        source: "pasted",
+        sourceType: "paste",
+        wordCount: 100,
+        estimatedReadTimeSeconds: 30,
+        addedAt: new Date().toISOString(),
+        segmentTreeId: "t1",
+      },
+    ];
+    return new Response(JSON.stringify({ documents: docs }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("does NOT mount the recap card when /api/ai/recap returns no recap", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/documents")) return makeDocs();
+      if (url.includes("/api/positions")) {
+        return new Response(JSON.stringify({ positions: [] }), { status: 200 });
+      }
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const LibraryPage = (await import("./page")).default;
+    const { container } = render(<LibraryPage />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("doc-card").length).toBe(1);
+    });
+    // The recap card uses the "Pick up where you left off" eyebrow.
+    expect(
+      container.querySelector('section[aria-label="Pick up where you left off"]'),
+    ).toBeNull();
+  });
+
+  it("mounts the recap card with title + recap text + Open CTA when recap is present", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/documents")) return makeDocs();
+      if (url.includes("/api/positions")) {
+        return new Response(
+          JSON.stringify({
+            positions: [
+              {
+                position: {
+                  documentId: "d1",
+                  lastPlayedAt: new Date().toISOString(),
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/ai/recap")) {
+        return new Response(
+          JSON.stringify({
+            recap: "You were mid-paragraph about how the importer trusts paste.",
+            generatedAt: new Date().toISOString(),
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const LibraryPage = (await import("./page")).default;
+    const { container } = render(<LibraryPage />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("doc-card").length).toBe(1);
+    });
+    // Wait for the recap fetch chain to settle.
+    await waitFor(() => {
+      expect(
+        container.querySelector('section[aria-label="Pick up where you left off"]'),
+      ).not.toBeNull();
+    });
+    // Scope the assertion to the recap section so the DocCard doesn't collide.
+    const recapSection = container.querySelector(
+      'section[aria-label="Pick up where you left off"]',
+    ) as HTMLElement;
+    expect(recapSection.textContent).toMatch(/A pasted note/i);
+    expect(recapSection.textContent).toMatch(/importer trusts paste/i);
+    expect(
+      recapSection.querySelector('a[href*="/reader/"]')?.getAttribute("href"),
+    ).toBe("/reader/d1");
+  });
+
+  it("'Try a sample' fires /api/import exactly once even on rapid double-click (Phase E E.10)", async () => {
+    let importCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/documents")) return makeDocs();
+      if (url.includes("/api/positions")) {
+        return new Response(JSON.stringify({ positions: [] }), { status: 200 });
+      }
+      if (url.includes("/api/import") && init?.method === "POST") {
+        importCalls += 1;
+        // Block resolution until we observe subsequent clicks.
+        return new Promise<Response>((resolve) => {
+          setTimeout(
+            () =>
+              resolve(
+                new Response(JSON.stringify({ documentId: "doc-x" }), { status: 201 }),
+              ),
+            10,
+          );
+        });
+      }
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const LibraryPage = (await import("./page")).default;
+    render(<LibraryPage />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("doc-card").length).toBe(1);
+    });
+
+    const trigger = screen.getByRole("button", { name: /try a sample/i });
+    // Rapid double-click — should be coalesced to a single import.
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+
+    // Allow the microtask + setTimeout to settle.
+    await waitFor(() => {
+      expect(importCalls).toBe(1);
+    });
+  });
+});
