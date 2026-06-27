@@ -142,6 +142,29 @@ describe("LibraryPage (Phase D P1 — D.3)", () => {
     expect(shelfIdx).toBeLessThan(dropzoneIdx);
   });
 
+  it("the active filter chip uses the peach row (Phase F F.6)", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/documents")) return makeDocsResponse();
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const LibraryPage = (await import("./page")).default;
+    render(<LibraryPage />);
+    // The default filter is "All" (the first one in LIBRARY_FILTERS).
+    const allChip = document.querySelector(
+      '[data-filter-label="All"]',
+    ) as HTMLElement;
+    expect(allChip.className).toContain("bg-coral-100");
+    expect(allChip.className).toContain("text-coral-700");
+    // Click PDF — it should now take the peach row.
+    const pdfChip = screen.getByRole("button", { name: /^PDF/i });
+    fireEvent.click(pdfChip);
+    const activePdf = document.querySelector('[data-filter-label="PDF"]') as HTMLElement;
+    expect(activePdf.className).toContain("bg-coral-100");
+    expect(activePdf.className).toContain("text-coral-700");
+  });
+
   it('"Pasted" filter chip matches `sourceType="paste"` docs (no longer empty)', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : (input as Request).url;

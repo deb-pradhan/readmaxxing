@@ -348,8 +348,11 @@ export default function LibraryPage(): React.JSX.Element {
                     // meets WCAG / Apple HIG while keeping the visual chip
                     // compact at 32px.
                     "shrink-0 min-h-11 rounded-full px-4 py-2 text-xs font-medium transition-colors",
+                    // Phase F (F.6): peach row — `--coral-100` bg +
+                    // `--coral-700` text. The non-active chips keep the
+                    // previous neutral card style.
                     active
-                      ? "bg-ink text-canvas"
+                      ? "bg-coral-100 text-coral-700"
                       : "border border-border bg-card text-ink-muted hover:bg-card-muted",
                   )}
                 >

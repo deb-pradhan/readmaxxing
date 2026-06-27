@@ -118,8 +118,11 @@ export function LeaderboardTable({
               data-current-user={Boolean(row.isCurrentUser)}
               className={cn(
                 "flex items-center gap-3 rounded-md px-2 py-1.5",
+                // Phase F (F.6): peach row — `--coral-100` bg +
+                // `--coral-700` text — for the active (current user)
+                // row. The other rows stay neutral.
                 row.isCurrentUser
-                  ? "bg-coral-soft"
+                  ? "bg-coral-100 text-coral-700"
                   : "hover:bg-card-muted",
               )}
             >

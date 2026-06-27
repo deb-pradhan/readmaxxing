@@ -91,8 +91,12 @@ export function VoicePicker({
             key={voice.id}
             className={cn(
               "relative flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-all",
+              // Phase F (F.6): peach row — `--coral-100` bg +
+              // `--coral-700` text on the active card. We keep the
+              // coral ring + accent border for the visual emphasis on
+              // the active state (DESIGN-SYSTEM §25.7).
               selected
-                ? "border-coral-bg ring-2 ring-coral-soft"
+                ? "border-coral-bg bg-coral-100 text-coral-700 ring-2 ring-coral-soft"
                 : "border-border hover:border-border-strong",
             )}
           >

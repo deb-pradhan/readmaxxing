@@ -42,4 +42,15 @@ describe("VoicePicker", () => {
     expect(pressed.length).toBe(1);
     expect(pressed[0]?.textContent).toContain("My voice");
   });
+
+  // Phase F (F.6): the active voice card uses the peach row.
+  it("the active voice card uses the peach row (bg-coral-100 + text-coral-700)", () => {
+    const { container } = render(
+      <VoicePicker voices={VOICES} value="cloned:abc" onChange={() => {}} />,
+    );
+    // The card wraps the button — find the card with the active class.
+    const activeCard = container.querySelector(".bg-coral-100");
+    expect(activeCard).not.toBeNull();
+    expect(activeCard?.className).toContain("text-coral-700");
+  });
 });
