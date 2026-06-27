@@ -3,15 +3,17 @@
 /**
  * DocCard — a single document in the library grid.
  *
- * Clean, typographic card (no empty media placeholder): a small source tag,
- * the title, compact meta (words · read time), and a thin progress bar that
- * only appears once a document has been started. One tap → the reader.
+ * Phase F (F.4): the card now opens with a deterministic gradient
+ * cover (CoverArt keyed on the document id) so every doc gets its
+ * own visual fingerprint. The source tag uses the shared Chip
+ * primitive (DESIGN-SYSTEM §25.6). The whole card stays a single
+ * <button> — one tap → the reader.
  */
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { DocumentSourceType } from "@readmaxxing/core";
-import { cn } from "@readmaxxing/ui";
+import { Chip, CoverArt, cn, type ChipVariant } from "@readmaxxing/ui";
 
 export interface DocCardProps {
   id: string;
@@ -34,14 +36,14 @@ const SOURCE_LABEL: Record<DocumentSourceType, string> = {
   paste: "Pasted",
 };
 
-const SOURCE_TONE: Record<DocumentSourceType, string> = {
-  pdf: "bg-coral-soft text-coral-text",
-  docx: "bg-lavender-soft text-lavender-text",
-  md: "bg-butter-soft text-butter-text",
-  epub: "bg-mint-soft text-mint-text",
-  txt: "bg-card-muted text-ink-muted",
-  url: "bg-mint-soft text-mint-text",
-  paste: "bg-lavender-soft text-lavender-text",
+const SOURCE_CHIP: Record<DocumentSourceType, ChipVariant> = {
+  pdf: "coral",
+  docx: "lavender",
+  md: "butter",
+  epub: "mint",
+  txt: "neutral",
+  url: "mint",
+  paste: "lavender",
 };
 
 function formatReadTime(seconds: number): string {
@@ -69,7 +71,7 @@ export function DocCard({
       type="button"
       onClick={() => router.push(`/reader/${id}`)}
       className={cn(
-        "group flex w-full flex-col gap-3 rounded-lg border border-border-subtle bg-card p-5 text-left",
+        "group flex w-full flex-col gap-3 overflow-hidden rounded-lg border border-border-subtle bg-card p-0 text-left",
         "transition-[border-color,box-shadow,transform] duration-fast ease-out",
         "hover:-translate-y-0.5 hover:border-border hover:shadow-soft",
         "focus-visible:outline-none focus-visible:shadow-focus",
@@ -77,49 +79,58 @@ export function DocCard({
       )}
       aria-label={`Open ${title}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className={cn(
-            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-            SOURCE_TONE[sourceType],
-          )}
-        >
-          {SOURCE_LABEL[sourceType]}
-        </span>
-        {pct > 0 ? (
-          <span className="tabular text-xs font-medium text-ink-muted">{pct}%</span>
-        ) : null}
-      </div>
+      {/* Phase F (F.4): deterministic gradient cover keyed on the
+          document id. Decorative — the title is exposed via the
+          surrounding <h3>. 3:4 aspect = book cover proportions. */}
+      <CoverArt
+        seed={id}
+        title={title}
+        aspect="3/4"
+        className="rounded-b-none"
+      />
 
-      <h3 className="line-clamp-2 break-words text-md font-semibold leading-snug text-ink">
-        {title}
-      </h3>
-
-      <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
-        <span className="tabular">{wordCount.toLocaleString()} words</span>
-        {readTimeSeconds > 0 ? (
-          <>
-            <span aria-hidden>·</span>
-            <span className="tabular">{formatReadTime(readTimeSeconds)}</span>
-          </>
-        ) : null}
-        {source && sourceType === "url" ? (
-          <>
-            <span aria-hidden>·</span>
-            <span className="truncate">{source}</span>
-          </>
-        ) : null}
-      </div>
-
-      {pct > 0 ? (
-        <div className="h-1 w-full overflow-hidden rounded-full bg-border-subtle">
-          <div
-            aria-hidden
-            className="h-full rounded-full bg-coral-bg transition-[width] duration-fast ease-out"
-            style={{ width: `${pct}%` }}
-          />
+      <div className="flex flex-col gap-3 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <Chip variant={SOURCE_CHIP[sourceType]}>{SOURCE_LABEL[sourceType]}</Chip>
+          {pct > 0 ? (
+            <span className="font-mono tabular-nums text-xs font-medium text-ink-muted">
+              {pct}%
+            </span>
+          ) : null}
         </div>
-      ) : null}
+
+        <h3 className="line-clamp-2 break-words text-md font-semibold leading-snug text-ink">
+          {title}
+        </h3>
+
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted">
+          <span className="font-mono tabular-nums">{wordCount.toLocaleString()} words</span>
+          {readTimeSeconds > 0 ? (
+            <>
+              <span aria-hidden>·</span>
+              <span className="font-mono tabular-nums">
+                {formatReadTime(readTimeSeconds)}
+              </span>
+            </>
+          ) : null}
+          {source && sourceType === "url" ? (
+            <>
+              <span aria-hidden>·</span>
+              <span className="truncate">{source}</span>
+            </>
+          ) : null}
+        </div>
+
+        {pct > 0 ? (
+          <div className="h-1 w-full overflow-hidden rounded-full bg-border-subtle">
+            <div
+              aria-hidden
+              className="h-full rounded-full bg-coral-bg transition-[width] duration-fast ease-out"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        ) : null}
+      </div>
     </button>
   );
 }
