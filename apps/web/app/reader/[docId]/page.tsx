@@ -348,6 +348,58 @@ export default function ReaderPage(): React.JSX.Element {
     }
   }, [playing, audioUrl, audioRef, pausePlayback]);
 
+  // Audit C2 (Phase C P0): when the user changes `speed` from the player
+  // chrome, we must re-apply it to the live <audio> element. Previously the
+  // rate was only set once on `loadedmetadata`, so changes were silently
+  // dropped until the next reload. We also persist the change (debounced) so
+  // the next visit picks up where the user left off.
+  React.useEffect(() => {
+    const audio = audioRef;
+    if (!audio) return;
+    audio.playbackRate = speed;
+  }, [speed, audioRef]);
+
+  // Debounced persistence of `speed` to the user prefs endpoint. We coalesce
+  // rapid up/down keystrokes into a single PATCH so we don't spam the BFF.
+  React.useEffect(() => {
+    const id = window.setTimeout(() => {
+      void fetch("/api/user/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ defaultSpeed: speed }),
+      }).catch(() => undefined);
+    }, 600);
+    return () => window.clearTimeout(id);
+  }, [speed]);
+
+  // Hydrate `speed` from the persisted user preference on mount. First-time
+  // users keep the default `1.0`; the server returns `defaultSpeed` from
+  // `UserPreference.prefs` when one was previously saved.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/user/preferences", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const prefs = (await res.json()) as { defaultSpeed?: number };
+        if (cancelled) return;
+        if (typeof prefs.defaultSpeed === "number" && Number.isFinite(prefs.defaultSpeed)) {
+          const clamped = Math.max(0.5, Math.min(4.5, prefs.defaultSpeed));
+          if (clamped !== speed) setSpeed(clamped);
+        }
+      } catch {
+        // Silent — first-paint defaults are fine when prefs are unavailable.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Honest elapsed-time counter while audio is being generated (UI-UX §10 —
   // no fake "2 seconds"). Resets when synthesis finishes.
   React.useEffect(() => {
