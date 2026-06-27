@@ -18,7 +18,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, cn } from "@readmaxxing/ui";
+import { Button, Card, cn } from "@readmaxxing/ui";
 
 type SupportedType = "pdf" | "docx" | "epub" | "md" | "txt" | "image" | "scanned-pdf" | "url";
 
@@ -348,12 +348,7 @@ export function ImportDropzone({
   const labelClass = "text-sm font-medium text-ink";
 
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col gap-4 rounded-lg border border-border-subtle bg-card p-4 sm:p-5",
-        className,
-      )}
-    >
+    <Card padding="none" className={cn("flex w-full flex-col gap-4 p-4 sm:p-5", className)}>
       {/* Mode tabs — segmented control for which input mode is active */}
       <div
         role="tablist"
@@ -549,7 +544,7 @@ export function ImportDropzone({
           ) : null}
         </div>
       ) : null}
-    </div>
+    </Card>
   );
 }
 
