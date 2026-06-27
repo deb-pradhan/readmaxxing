@@ -52,6 +52,18 @@ interface DocumentRow {
   segmentTreeId: string;
 }
 
+interface RecapCardData {
+  documentId: string;
+  title: string;
+  recap: string;
+  generatedAt: string | null;
+}
+
+interface PositionRow {
+  documentId: string;
+  lastPlayedAt: string;
+}
+
 const CHUNK_SIZE = 7;
 
 const SAMPLE = `The best interface is the one you stop noticing.
@@ -67,6 +79,17 @@ export default function LibraryPage(): React.JSX.Element {
   const [chunk, setChunk] = React.useState(1);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
+
+  /**
+   * Phase E (E.8) — recap card state. We pick the most-recently-played
+   * document (the same doc that anchors the Continue shelf) and ask
+   * `/api/ai/recap` for the "pick up where you left off" summary. The
+   * endpoint is cached server-side so re-renders are instant; if the
+   * user has no positions yet, `recap` stays `null` and the card
+   * doesn't render.
+   */
+  const [recap, setRecap] = React.useState<RecapCardData | null>(null);
+  const [recapLoading, setRecapLoading] = React.useState(false);
 
   // Global Cmd/Ctrl+K opens the palette, `?` opens the shortcuts sheet.
   React.useEffect(() => {
@@ -111,6 +134,60 @@ export default function LibraryPage(): React.JSX.Element {
       cancelled = true;
     };
   }, []);
+
+  /**
+   * Phase E (E.8): fetch the recap card. Steps:
+   *   1. `/api/positions` — find the most-recently-played document.
+   *   2. `/api/ai/recap?documentId=…` — get the cached summary.
+   *   3. Resolve the title from the docs list (rendered above).
+   * If any step 4xxs, fail closed — no recap card mounts. The card
+   * stays hidden while loading (avoids layout shift on first paint).
+   */
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setRecapLoading(true);
+        const posRes = await fetch("/api/positions", { credentials: "include" });
+        if (!posRes.ok) return;
+        const posBody = (await posRes.json()) as { positions: Array<{ position: PositionRow }> };
+        const sorted = (posBody.positions ?? [])
+          .map((p) => p.position)
+          .filter((p) => typeof p.documentId === "string" && typeof p.lastPlayedAt === "string")
+          .sort(
+            (a, b) =>
+              new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime(),
+          );
+        const top = sorted[0];
+        if (!top) return;
+        const recapRes = await fetch(
+          `/api/ai/recap?documentId=${encodeURIComponent(top.documentId)}`,
+          { credentials: "include" },
+        );
+        if (!recapRes.ok) return;
+        const recapBody = (await recapRes.json()) as {
+          recap: string | null;
+          generatedAt: string | null;
+        };
+        if (!recapBody.recap) return;
+        const titleFromDocs = (docs ?? []).find((d) => d.id === top.documentId)?.title;
+        if (cancelled) return;
+        setRecap({
+          documentId: top.documentId,
+          title: titleFromDocs ?? "Your document",
+          recap: recapBody.recap,
+          generatedAt: recapBody.generatedAt,
+        });
+      } catch {
+        /* recap card is non-essential — fail closed silently */
+      } finally {
+        if (!cancelled) setRecapLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [docs]);
 
   const filtered = React.useMemo(() => {
     if (!docs) return [];
@@ -159,6 +236,13 @@ export default function LibraryPage(): React.JSX.Element {
           Paste, drop, or link anything — start listening in seconds.
         </p>
       </div>
+
+      {/* Phase E (E.8): recap card. Sits above Continue shelf so
+          returning users see "you were here" before the doc grid. The
+          endpoint is server-side cached, so the first paint is fast;
+          if no position exists, the card is not rendered (no empty
+          state to lie about). */}
+      {recap ? <RecapCard recap={recap} /> : null}
 
       {/* Continue listening — sits ABOVE the importer so returning users
           land on their in-progress docs immediately (Phase D P1 D.3). The
@@ -281,6 +365,36 @@ export default function LibraryPage(): React.JSX.Element {
       />
       <KeyboardShortcuts open={helpOpen} onClose={() => setHelpOpen(false)} />
     </main>
+  );
+}
+
+/**
+ * Phase E (E.8): the recap card. Title + 1-line summary + "Open recap"
+ * CTA. Real content only — `recap` is a non-empty string sourced from
+ * the server (or the card doesn't render).
+ */
+function RecapCard({ recap }: { recap: RecapCardData }): React.JSX.Element {
+  return (
+    <section
+      aria-label="Pick up where you left off"
+      className="mt-8 rounded-lg border border-border-subtle bg-card p-5 shadow-sm sm:p-6"
+    >
+      <p className="text-xs font-medium uppercase tracking-widest text-ink-muted">
+        Pick up where you left off
+      </p>
+      <h2 className="mt-2 text-lg font-semibold tracking-tight text-ink">
+        {recap.title}
+      </h2>
+      <p className="mt-2 text-base leading-relaxed text-ink">{recap.recap}</p>
+      <div className="mt-4 flex justify-end">
+        <Link
+          href={`/reader/${recap.documentId}`}
+          className="inline-flex h-11 items-center justify-center rounded-full bg-coral-bg px-5 text-sm font-medium text-white transition hover:bg-coral-700 focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          Open recap →
+        </Link>
+      </div>
+    </section>
   );
 }
 
