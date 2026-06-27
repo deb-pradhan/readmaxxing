@@ -259,7 +259,7 @@ function StepPill({
         active
           ? "bg-coral-bg text-white"
           : done
-            ? "bg-coral-bg-soft text-coral-text"
+            ? "bg-coral-soft text-coral-text"
             : "bg-card-muted text-ink-muted",
       )}
     >
@@ -468,7 +468,7 @@ function DoneStep({
 }): React.JSX.Element {
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-coral-bg-soft bg-coral-bg-soft/30 p-3 text-sm">
+      <div className="rounded-md border border-coral-soft bg-coral-soft/30 p-3 text-sm">
         <p className="font-medium text-coral-text">Voice ready ✨</p>
         <p className="mt-1 text-ink-muted">
           &quot;{result.name}&quot; is now in your voice list. Try it on the next doc.
