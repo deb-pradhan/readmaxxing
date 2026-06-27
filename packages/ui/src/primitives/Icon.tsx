@@ -25,7 +25,7 @@ export interface IconProps extends Omit<React.SVGAttributes<SVGSVGElement>, "nam
   /** Pixel size for width + height. */
   size?: 16 | 20 | 24;
   /** Stroke width passed through to Lucide. */
-  strokeWidth?: 1.5 | 2;
+  strokeWidth?: number;
   /** Forwarded; setting this exposes the icon as a meaningful image. */
   "aria-label"?: string;
   className?: string;

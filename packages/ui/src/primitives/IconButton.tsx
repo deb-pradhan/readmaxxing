@@ -32,7 +32,7 @@ export interface IconButtonProps
   /** Visual intent. */
   intent?: IconButtonIntent;
   /** Match the stroke width used in `Icon`. */
-  strokeWidth?: 1.5 | 2;
+  strokeWidth?: number;
 }
 
 const sizeClasses: Record<IconButtonSize, string> = {
