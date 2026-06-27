@@ -16,6 +16,12 @@ import { Button, cn } from "@readmaxxing/ui";
 import { DocCard } from "@/components/library/DocCard";
 import { ImportDropzone } from "@/components/library/ImportDropzone";
 import { ThemeSwitcher } from "@/components/shared/ThemeSwitcher";
+import {
+  LIBRARY_FILTERS,
+  applyLibraryFilter,
+  type LibraryFilter,
+  type DocumentSourceType,
+} from "@/lib/documents/source";
 
 const ContinueShelf = dynamic(
   () => import("@/components/library/ContinueShelf").then((m) => m.ContinueShelf),
@@ -39,7 +45,7 @@ interface DocumentRow {
   id: string;
   title: string;
   source: string;
-  sourceType: "pdf" | "docx" | "md" | "epub" | "txt" | "url" | "paste";
+  sourceType: DocumentSourceType;
   wordCount: number;
   estimatedReadTimeSeconds: number;
   addedAt: string;
@@ -47,9 +53,6 @@ interface DocumentRow {
 }
 
 const CHUNK_SIZE = 7;
-
-const FILTERS = ["All", "Pasted", "URL", "PDF", "EPUB"] as const;
-type Filter = (typeof FILTERS)[number];
 
 const SAMPLE = `The best interface is the one you stop noticing.
 
@@ -60,7 +63,7 @@ That's the whole idea — the interface gets out of your way and lets the words 
 export default function LibraryPage(): React.JSX.Element {
   const [docs, setDocs] = React.useState<DocumentRow[] | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [filter, setFilter] = React.useState<Filter>("All");
+  const [filter, setFilter] = React.useState<LibraryFilter>(LIBRARY_FILTERS[0]);
   const [chunk, setChunk] = React.useState(1);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
@@ -111,8 +114,10 @@ export default function LibraryPage(): React.JSX.Element {
 
   const filtered = React.useMemo(() => {
     if (!docs) return [];
-    if (filter === "All") return docs;
-    return docs.filter((d) => d.sourceType.toLowerCase() === filter.toLowerCase());
+    // Phase D P1 (D.3): filter chip → sourceType via DOCUMENT_SOURCE_LABELS
+    // map. Previously this was a fragile lowercase string compare that
+    // silently dropped the Pasted chip ("pasted" ≠ "paste").
+    return applyLibraryFilter(docs, filter);
   }, [docs, filter]);
 
   const visible = filtered.slice(0, chunk * CHUNK_SIZE);
@@ -155,8 +160,16 @@ export default function LibraryPage(): React.JSX.Element {
         </p>
       </div>
 
+      {/* Continue listening — sits ABOVE the importer so returning users
+          land on their in-progress docs immediately (Phase D P1 D.3). The
+          shelf itself sorts by lastPlayedAt desc — see ContinueShelf.tsx. */}
+      <section aria-label="Continue listening" className="mt-8">
+        <h2 className="mb-4 text-lg font-semibold tracking-tight">Continue listening</h2>
+        <ContinueShelf />
+      </section>
+
       {/* Importer — the primary action, always open (D32) */}
-      <section aria-label="Add a document" className="mt-6">
+      <section aria-label="Add a document" className="mt-12">
         <ImportDropzone />
         <button
           type="button"
@@ -180,22 +193,16 @@ export default function LibraryPage(): React.JSX.Element {
         </button>
       </section>
 
-      {/* Continue listening */}
-      <section aria-label="Continue listening" className="mt-12">
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">Continue listening</h2>
-        <ContinueShelf />
-      </section>
-
       {/* Documents */}
       <section aria-label="Documents" className="mt-12">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold tracking-tight">Your documents</h2>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:px-0 sm:pb-0">
-            {FILTERS.map((f) => {
+            {LIBRARY_FILTERS.map((f) => {
               const active = f === filter;
               return (
                 <button
-                  key={f}
+                  key={f.label}
                   type="button"
                   onClick={() => {
                     setFilter(f);
@@ -212,7 +219,7 @@ export default function LibraryPage(): React.JSX.Element {
                       : "border border-border bg-card text-ink-muted hover:bg-card-muted",
                   )}
                 >
-                  {f}
+                  {f.label}
                 </button>
               );
             })}
