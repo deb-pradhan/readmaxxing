@@ -37,7 +37,7 @@ describe("VoiceCloneFlow (Phase E — E.7)", () => {
 
   it("exports a VoiceCloneFlow component that renders without crashing", async () => {
     const { VoiceCloneFlow } = await import("./VoiceCloneFlow");
-    render(<VoiceCloneFlow onCloned={() => undefined} />);
-    expect(screen.getByRole("region", { hidden: true }) || screen.container).toBeTruthy();
+    const { container } = render(<VoiceCloneFlow onCloned={() => undefined} />);
+    expect(container.firstChild).not.toBeNull();
   });
 });
