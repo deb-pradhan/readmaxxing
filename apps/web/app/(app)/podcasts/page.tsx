@@ -332,7 +332,7 @@ function ProducingCard({ episode }: { episode: EpisodeRow }): React.JSX.Element 
       <StatusPill status={episodeStatusToPill(episode.status)} />
       <h3 className="break-words text-md font-semibold leading-snug text-ink">{episode.title}</h3>
       <p className="text-xs text-ink-muted">
-        We'll email you when this episode is ready.
+        We&apos;ll email you when this episode is ready.
       </p>
       <Link
         href={`/podcasts/${episode.id}`}
