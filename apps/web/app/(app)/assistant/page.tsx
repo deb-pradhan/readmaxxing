@@ -86,36 +86,36 @@ export default function AssistantPage(): React.JSX.Element {
           </p>
         </div>
 
-        {/* Greeting hero */}
-        <section
-          aria-label="AI assistant greeting"
-          className="mt-8 rounded-lg bg-inverse p-6 text-ink-inverse"
-        >
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-coral-bg text-xs font-bold text-white">
-              AI
-            </span>
-            <p className="text-xs font-medium uppercase tracking-widest text-ink-inverse-muted">
-              AI Assistant
-            </p>
-          </div>
-          <p className="mt-4 text-xl font-bold leading-snug text-ink-inverse">
-            Hi, Hanna!
+{/* Phase E (E.1): honest empty state. No fabricated greeting, no
+          invented activity stats (audit D finding). The hero invites the
+          first action and lists real, copy-stable quick chips — no
+          pseudo-personalisation. */}
+      <section
+        aria-label="AI assistant welcome"
+        className="mt-8 rounded-lg bg-inverse p-6 text-ink-inverse"
+      >
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-coral-bg text-xs font-bold text-white">
+            AI
+          </span>
+          <p className="text-xs font-medium uppercase tracking-widest text-ink-inverse-muted">
+            AI Assistant
           </p>
-          <p className="mt-2 text-base leading-relaxed text-ink-inverse-muted">
-            You opened <span className="font-semibold text-coral-bg">two long docs</span>{" "}
-            today. I can catch you up,{" "}
-            <span className="font-semibold text-coral-bg">summarize the key idea</span>, or{" "}
-            <span className="font-semibold text-coral-bg">quiz you on what stuck</span>.
-            Which one?
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Chip variant="coral">Catch me up</Chip>
-            <Chip variant="butter">Key takeaway</Chip>
-            <Chip variant="lavender">Quiz me</Chip>
-            <Chip variant="mint">Continue the show</Chip>
-          </div>
-        </section>
+        </div>
+        <p className="mt-4 text-xl font-bold leading-snug text-ink-inverse">
+          Ask by voice or text
+        </p>
+        <p className="mt-2 text-base leading-relaxed text-ink-inverse-muted">
+          Bind a document or episode below for cited answers, or ask a general
+          question. Quick prompts to get you started:
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Chip variant="coral">Catch me up</Chip>
+          <Chip variant="butter">Key takeaway</Chip>
+          <Chip variant="lavender">Quiz me</Chip>
+          <Chip variant="mint">Continue the show</Chip>
+        </div>
+      </section>
 
         {/* Conversation */}
         <section
@@ -194,7 +194,7 @@ export default function AssistantPage(): React.JSX.Element {
             />
             <span className="font-medium">Hands-free mode</span>
             <span className="text-xs text-ink-muted">
-              voice-in → assistant → voice-out loop, with debounce
+              voice-in → assistant → voice-out loop
             </span>
           </label>
         </Card>
