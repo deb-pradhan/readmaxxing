@@ -100,7 +100,8 @@ export function Coachmarks({
           type="button"
           aria-label="Skip tour"
           onClick={() => dismiss(true)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted focus-visible:outline-none focus-visible:shadow-focus"
+          // Phase D P1 (D.11): ≥44px touch target. Close button was 32×32.
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted focus-visible:outline-none focus-visible:shadow-focus"
         >
           ✕
         </button>

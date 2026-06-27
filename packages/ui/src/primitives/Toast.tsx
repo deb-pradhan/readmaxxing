@@ -84,7 +84,10 @@ export const Toast: React.FC<ToastProps> = ({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="-m-1 inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-current/10 focus-visible:outline-none focus-visible:shadow-focus"
+          // Phase D P1 (D.11): ≥44px touch target. We use the negative
+          // margin trick so the visible footprint stays tight while the
+          // hit area meets WCAG / Apple HIG minimums.
+          className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-current/10 focus-visible:outline-none focus-visible:shadow-focus"
         >
           <span aria-hidden className="text-base leading-none">
             ×

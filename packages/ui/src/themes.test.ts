@@ -151,8 +151,9 @@ describe("themeCssVars — Visual Language v2 contract", () => {
 
     it("light coral-600 hex resolves to a non-empty CSS var", () => {
       const vars = themeCssVars(themes.light);
-      expect(vars["--coral-600"]).toBeTruthy();
-      expect(vars["--coral-600"].length).toBeGreaterThan(0);
+      const v = vars["--coral-600"];
+      expect(v).toBeTruthy();
+      expect(v?.length ?? 0).toBeGreaterThan(0);
     });
   });
 });

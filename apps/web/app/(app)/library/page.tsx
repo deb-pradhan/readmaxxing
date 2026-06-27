@@ -203,7 +203,10 @@ export default function LibraryPage(): React.JSX.Element {
                   }}
                   aria-pressed={active}
                   className={cn(
-                    "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                    // Phase D P1 (D.11): ≥44px touch target. py-2 + min-h-11
+                    // meets WCAG / Apple HIG while keeping the visual chip
+                    // compact at 32px.
+                    "shrink-0 min-h-11 rounded-full px-4 py-2 text-xs font-medium transition-colors",
                     active
                       ? "bg-ink text-canvas"
                       : "border border-border bg-card text-ink-muted hover:bg-card-muted",
@@ -289,7 +292,8 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-card text-ink-muted transition-colors hover:bg-card-muted hover:text-ink focus-visible:outline-none focus-visible:shadow-focus"
+      // Phase D P1 (D.11): ≥44px touch target. Was 40×40.
+      className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border bg-card text-ink-muted transition-colors hover:bg-card-muted hover:text-ink focus-visible:outline-none focus-visible:shadow-focus"
     >
       {children}
     </button>

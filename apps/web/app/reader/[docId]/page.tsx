@@ -102,7 +102,8 @@ function ReaderToggle({
       aria-label={label}
       title={label}
       className={
-        "inline-flex h-10 w-10 items-center justify-center rounded-md border transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:shadow-focus " +
+        // Phase D P1 (D.11): ≥44px touch target. Was 40×40.
+        "inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:shadow-focus " +
         (active
           ? "border-coral-bg bg-coral-bg text-white"
           : "border-border bg-card text-ink-muted hover:bg-card-muted hover:text-ink")
@@ -914,7 +915,8 @@ function AiSurface({
           type="button"
           onClick={onClose}
           aria-label="Close AI surface"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted"
+          // Phase D P1 (D.11): ≥44px touch target. Was 36×36.
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted"
         >
           ✕
         </button>

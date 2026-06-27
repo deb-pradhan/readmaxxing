@@ -72,7 +72,8 @@ export function KeyboardShortcuts({
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted focus-visible:outline-none focus-visible:shadow-focus"
+            // Phase D P1 (D.11): ≥44px touch target. Close button was 36×36.
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-muted hover:bg-card-muted focus-visible:outline-none focus-visible:shadow-focus"
           >
             ✕
           </button>

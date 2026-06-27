@@ -247,4 +247,48 @@ describe("ReaderPage audit C2 — playbackRate re-applies on speed change", () =
       expect(audioEl.playbackRate).toBe(1.25);
     });
   });
+
+  // Phase D P1 (D.11): reader toolbar buttons are ≥44px touch targets.
+  it("renders the reader toolbar toggle buttons at ≥44px (h-11)", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/user/preferences")) {
+        return makePrefsResponse(null);
+      }
+      if (url.includes("/api/documents/")) {
+        return makeDocResponse();
+      }
+      if (url.includes("/api/positions")) {
+        return makePositionsResponse();
+      }
+      return new Response("{}", { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const ReaderPage = (await import("./page")).default;
+    render(<ReaderPage />);
+
+    // Wait for the page to render the toolbar (after tree loads).
+    await waitFor(
+      () => {
+        const btn = screen.queryByRole("button", { name: /Focus mode/ });
+        if (!btn) throw new Error("Focus mode button not mounted yet");
+        return btn;
+      },
+      { timeout: 5000 },
+    );
+    // The four toolbar toggles — focus / bionic / guide / help — all carry
+    // h-11 w-11 (44px) per Phase D P1 (D.11).
+    const toggleLabels = [
+      /Focus mode/,
+      /Bionic reading/,
+      /Reading guide/,
+      /Keyboard shortcuts/,
+    ];
+    for (const re of toggleLabels) {
+      const btn = screen.getByRole("button", { name: re });
+      expect(btn.className).toContain("h-11");
+      expect(btn.className).toContain("w-11");
+    }
+  });
 });

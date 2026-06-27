@@ -231,7 +231,7 @@ export function VoiceCloneFlow({
         <div role="alert" className="rounded-md border border-danger bg-[#FBE9E7] p-3 text-sm text-danger">
           {error}
           <div className="mt-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setStep("name")}>
+            <Button type="button" variant="secondary" size="md" onClick={() => setStep("name")}>
               Try again
             </Button>
           </div>
@@ -372,7 +372,7 @@ function SampleStep({
             if (file) onPickFile(file);
           }}
         />
-        <Button type="button" variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
+        <Button type="button" variant="secondary" size="md" onClick={() => inputRef.current?.click()}>
           Choose a file
         </Button>
         {audioUrl ? (
@@ -386,7 +386,7 @@ function SampleStep({
       </div>
 
       <div className="flex justify-between">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+        <Button type="button" variant="ghost" size="md" onClick={onBack}>
           Back
         </Button>
         <Button type="button" variant="primary" size="md" disabled={!meetsMin} onClick={onContinue}>
@@ -425,7 +425,7 @@ function NameStep({
         />
       </label>
       <div className="flex justify-between">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+        <Button type="button" variant="ghost" size="md" onClick={onBack}>
           Back
         </Button>
         <Button type="button" variant="primary" size="md" disabled={!name.trim()} onClick={onSubmit}>
