@@ -5,12 +5,16 @@
  *   - Quick chip click submits the question
  *   - Streaming answer renders progressively (deltas accumulate)
  *   - Citations appear once the stream ends
+ *   - Audit C4 (Phase C P0): `[cite:p:s]` markup is tokenized into
+ *     `<CitationPill>` instances — never raw `[cite:0:2]` text reaches the
+ *     user. The terminal frame carries `prose` which the client uses as the
+ *     canonical renderable string.
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import * as React from "react";
-import { AskChat } from "./AskChat";
+import { AskChat, tokenizeProse } from "./AskChat";
 
 function ndjsonStream(lines: object[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
@@ -94,7 +98,7 @@ describe("AskChat", () => {
     expect(citeButton).toBeInTheDocument();
   });
 
-  it("invokes onJumpToParagraph when a citation is clicked", async () => {
+  it("invokes onJumpToParagraph when a citation pill is clicked", async () => {
     const onJump = vi.fn();
     render(
       <AskChat
@@ -102,7 +106,12 @@ describe("AskChat", () => {
         onJumpToParagraph={onJump}
         fetchImpl={fetchOkStream([
           { delta: "Answer." },
-          { done: true, citations: [{ paragraphIndex: 5, sentenceIndex: 2 }], model: "x" },
+          {
+            done: true,
+            citations: [{ paragraphIndex: 5, sentenceIndex: 2 }],
+            prose: "Answer.",
+            model: "x",
+          },
         ])}
       />,
     );
@@ -110,5 +119,99 @@ describe("AskChat", () => {
     const cite = await screen.findByText(/¶6/);
     fireEvent.click(cite);
     expect(onJump).toHaveBeenCalledWith(5);
+  });
+
+  it("tokenizes [cite:p:s] placeholders into CitationPills (audit C4)", async () => {
+    const onJump = vi.fn();
+    render(
+      <AskChat
+        documentId="doc1"
+        onJumpToParagraph={onJump}
+        fetchImpl={fetchOkStream([
+          { delta: "The " },
+          { delta: "sky " },
+          { delta: "is " },
+          { delta: "blue" },
+          {
+            done: true,
+            citations: [
+              { paragraphIndex: 0, sentenceIndex: 0 },
+              { paragraphIndex: 2, sentenceIndex: 1 },
+            ],
+            prose: "The sky is blue [cite:0:0] and the grass is green [cite:2:1].",
+            model: "x",
+          },
+        ])}
+      />,
+    );
+    fireEvent.click(screen.getByText("Explain like I'm 5"));
+
+    // The raw `[cite:0:2]` text must NOT appear in the rendered DOM.
+    await waitFor(() => {
+      expect(screen.queryByText(/\[cite:/)).not.toBeInTheDocument();
+    });
+
+    // Two CitationPills render — one per paragraph. Their aria-label surfaces
+    // the (1-indexed) paragraph number for screen-reader users.
+    const pills = await screen.findAllByRole("button", { name: /Citation: paragraph/i });
+    expect(pills.length).toBe(2);
+
+    // Click the second pill and verify it routes to the right paragraph.
+    fireEvent.click(pills[1]!);
+    expect(onJump).toHaveBeenCalledWith(2);
+  });
+
+  it("renders a paragraph-less answer as plain text (no pills, no markup)", async () => {
+    render(
+      <AskChat
+        documentId="doc1"
+        fetchImpl={fetchOkStream([
+          { delta: "Just a plain answer." },
+          { done: true, citations: [], prose: "Just a plain answer.", model: "x" },
+        ])}
+      />,
+    );
+    fireEvent.click(screen.getByText("Explain like I'm 5"));
+    const final = await screen.findByText("Just a plain answer.");
+    expect(final).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Citation:/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("tokenizeProse (audit C4 unit test)", () => {
+  it("returns an empty array for empty prose", () => {
+    expect(tokenizeProse("")).toHaveLength(0);
+  });
+
+  it("returns a single text fragment when there are no citations", () => {
+    const nodes = tokenizeProse("Just plain text.");
+    expect(nodes).toHaveLength(1);
+    // Each tokenized node is either a React.Fragment (for plain text) or
+    // a <CitationPill>. We can't easily compare React fragments, but we
+    // can assert the joined text is preserved verbatim.
+    const allText = (nodes as React.ReactElement[]).map((n) => String(n.props.children)).join("");
+    expect(allText).toBe("Just plain text.");
+  });
+
+  it("emits a CitationPill for each [cite:p:s] placeholder", () => {
+    const nodes = tokenizeProse(
+      "Before [cite:0:0] middle [cite:1:2] after.",
+    );
+    expect(nodes.length).toBeGreaterThan(0);
+    // The CitationPill is a button — verify exactly 2 buttons render.
+    const buttons = (nodes as React.ReactElement[]).filter(
+      (n) => typeof n.type !== "string" && (n.type as { displayName?: string })?.displayName === "CitationPill",
+    );
+    expect(buttons.length).toBe(2);
+  });
+
+  it("respects paragraph/sentence indices from the placeholder", () => {
+    const nodes = tokenizeProse("a [cite:7:3] b");
+    const pill = (nodes as React.ReactElement[]).find(
+      (n) => typeof n.type !== "string" && (n.type as { displayName?: string })?.displayName === "CitationPill",
+    ) as React.ReactElement<{ paragraphIndex: number; sentenceIndex?: number }> | undefined;
+    expect(pill).toBeDefined();
+    expect(pill!.props.paragraphIndex).toBe(7);
+    expect(pill!.props.sentenceIndex).toBe(3);
   });
 });
