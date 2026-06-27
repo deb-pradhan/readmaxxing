@@ -91,6 +91,43 @@ export default function LibraryPage(): React.JSX.Element {
   const [recap, setRecap] = React.useState<RecapCardData | null>(null);
   const [recapLoading, setRecapLoading] = React.useState(false);
 
+  /**
+   * Phase E (E.10): "Try a sample" fires the import POST exactly
+   * once per click. `sampleBusy` is the lock that prevents a fast
+   * second click from queuing a second import while the first
+   * navigation is in flight (the audit observed a double-fire in the
+   * wild — most likely cause: a re-render re-bound the handler and
+   * React reused the click event, OR a double-tap re-fired before
+   * the route change settled).
+   */
+  const [sampleBusy, setSampleBusy] = React.useState(false);
+
+  const onTrySample = React.useCallback((): void => {
+    if (sampleBusy) return;
+    setSampleBusy(true);
+    fetch("/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        title: "Sample — the best interface",
+        text: SAMPLE,
+        sourceType: "paste",
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => {
+        if (payload?.documentId) {
+          window.location.href = `/reader/${payload.documentId}`;
+          return;
+        }
+        setSampleBusy(false);
+      })
+      .catch(() => {
+        setSampleBusy(false);
+      });
+  }, [sampleBusy]);
+
   // Global Cmd/Ctrl+K opens the palette, `?` opens the shortcuts sheet.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -257,23 +294,12 @@ export default function LibraryPage(): React.JSX.Element {
         <ImportDropzone />
         <button
           type="button"
-          onClick={() => {
-            navigator.clipboard?.writeText(SAMPLE).catch(() => undefined);
-            void fetch("/api/import", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ title: "Sample — the best interface", text: SAMPLE, sourceType: "paste" }),
-            })
-              .then((res) => (res.ok ? res.json() : null))
-              .then((payload) => {
-                if (payload?.documentId) window.location.href = `/reader/${payload.documentId}`;
-              })
-              .catch(() => undefined);
-          }}
-          className="mt-3 text-sm font-medium text-coral-text hover:underline focus-visible:outline-none focus-visible:shadow-focus"
+          onClick={onTrySample}
+          disabled={sampleBusy}
+          aria-busy={sampleBusy}
+          className="mt-3 text-sm font-medium text-coral-text transition-opacity hover:underline focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-progress disabled:opacity-60"
         >
-          Or try a sample →
+          {sampleBusy ? "Loading sample…" : "Or try a sample →"}
         </button>
       </section>
 
