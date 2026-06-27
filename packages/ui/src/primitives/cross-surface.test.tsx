@@ -17,7 +17,17 @@
 import * as React from "react";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { KaraokeHighlighter, ReaderColumn } from "@readmaxxing/ui";
+import {
+  KaraokeHighlighter,
+  ReaderColumn,
+  Button,
+  Icon,
+  IconButton,
+  Eyebrow,
+  CountPill,
+  StatusPill,
+  CitationPill,
+} from "@readmaxxing/ui";
 import { font } from "../tokens";
 import { buildSegmentTree } from "@readmaxxing/core";
 
@@ -91,5 +101,58 @@ describe("cross-surface DOM contract", () => {
     expect(typeof font.mono).toBe("string");
     expect(font.mono.length).toBeGreaterThan(0);
     expect(font.mono).toContain("Geist Mono");
+  });
+
+  // ===== v2 primitives (Phase B additions) =====
+
+  it("Button is pill-shaped (rounded-full) on every surface", () => {
+    const html = renderToStaticMarkup(<Button>Continue</Button>);
+    expect(html).toMatch(/class="[^"]*rounded-full/);
+    // No rounded-md / rounded-lg on the button itself.
+    const buttonMatch = /<button[^>]*class="([^"]+)"/.exec(html);
+    expect(buttonMatch).not.toBeNull();
+    const cls = buttonMatch![1]!;
+    expect(cls).not.toMatch(/rounded-md\b/);
+  });
+
+  it("Icon renders a Lucide SVG", () => {
+    const html = renderToStaticMarkup(<Icon name="arrow-up-right" />);
+    // Lucide wraps the SVG with `<svg>` and an inner `<path>` etc.
+    expect(html).toMatch(/<svg[^>]*>/);
+  });
+
+  it("IconButton renders a circular (rounded-full) <button>", () => {
+    const html = renderToStaticMarkup(<IconButton icon="check" aria-label="Confirm" />);
+    expect(html).toMatch(/<button[^>]*type="button"/);
+    expect(html).toMatch(/aria-label="Confirm"/);
+    expect(html).toMatch(/rounded-full/);
+  });
+
+  it("Eyebrow renders UPPERCASE + tracked micro-label", () => {
+    const html = renderToStaticMarkup(<Eyebrow>Now playing</Eyebrow>);
+    expect(html).toMatch(/uppercase/);
+    expect(html).toMatch(/tracking-\[0\.08em\]/);
+  });
+
+  it("CountPill renders mono + tabular numerals", () => {
+    const html = renderToStaticMarkup(<CountPill count={1240} />);
+    expect(html).toMatch(/font-mono/);
+    expect(html).toMatch(/tabular-nums/);
+    // Number formatted with locale grouping.
+    expect(html).toContain("1,240");
+  });
+
+  it("StatusPill renders the deterministic copy", () => {
+    const html = renderToStaticMarkup(<StatusPill status="error" />);
+    // 'error' → "Failed" (never "come back later").
+    expect(html).toContain("Failed");
+    expect(html).toContain('data-status="error"');
+  });
+
+  it("CitationPill renders ↗ + ¶ + (paragraphIndex + 1)", () => {
+    const html = renderToStaticMarkup(<CitationPill paragraphIndex={2} />);
+    expect(html).toContain("↗");
+    expect(html).toContain("¶");
+    expect(html).toContain("3");
   });
 });

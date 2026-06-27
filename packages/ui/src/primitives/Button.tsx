@@ -83,92 +83,100 @@ const labelSize: Record<ButtonSize, "text-sm" | "text-base" | "text-md"> = {
   lg: "text-md",
 };
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  function Button(
-    {
-      variant = "primary",
-      size = "md",
-      iconOnly = false,
-      loading = false,
-      icon,
-      iconTrailing,
-      iconLeading,
-      className,
-      children,
-      disabled,
-      type = "button",
-      ...rest
-    },
-    ref,
-  ) {
-    return (
-      <button
-        ref={ref}
-        type={type}
-        disabled={disabled || loading}
-        className={cn(
-          "inline-flex items-center justify-center rounded-full font-medium whitespace-nowrap",
-          "transition-all duration-fast ease-out active:scale-[0.97]",
-          "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
-          "focus-visible:outline-none",
-          labelSize[size],
-          variantClasses[variant],
-          iconOnly ? iconOnlyClasses[size] : sizeClasses[size],
-          className,
-        )}
-        {...rest}
-      >
-        {loading ? (
-          <span
-            aria-hidden
-            className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
-          />
-        ) : null}
-        {iconLeading ? (
-          <span aria-hidden className="inline-flex shrink-0">
-            {iconLeading}
-          </span>
-        ) : icon ? (
-          <Icon
-            name={icon}
-            size={size === "lg" ? 20 : 16}
-            strokeWidth={1.75}
-            aria-hidden
-          />
-        ) : null}
-        {children ? <span className="leading-none">{children}</span> : null}
-        {iconTrailing ? (
-          <Icon
-            name={iconTrailing}
-            size={size === "lg" ? 20 : 16}
-            strokeWidth={1.75}
-            aria-hidden
-          />
-        ) : null}
-      </button>
-    );
-  },
-);
-
-Button.displayName = "Button";
-
 /**
  * <Button.Icon> — a slot for a leading icon when you need a non-Lucide
  * custom node. Forward-ref'd so it composes with `Tooltip` and other
  * wrappers that need a ref to the underlying span.
  */
-const ButtonIconImpl = (
-  { children, className }: { children: React.ReactNode; className?: string },
-  ref: React.Ref<HTMLSpanElement>,
-): React.JSX.Element => (
-  <span ref={ref} aria-hidden className={cn("inline-flex shrink-0", className)}>
-    {children}
-  </span>
-);
-const ButtonIcon = React.forwardRef<HTMLSpanElement, { children: React.ReactNode; className?: string }>(
-  ButtonIconImpl,
-);
+export const ButtonIcon = React.forwardRef<
+  HTMLSpanElement,
+  { children: React.ReactNode; className?: string }
+>(function ButtonIcon({ children, className }, ref) {
+  return (
+    <span ref={ref} aria-hidden className={cn("inline-flex shrink-0", className)}>
+      {children}
+    </span>
+  );
+});
 ButtonIcon.displayName = "Button.Icon";
 
-// Attach as a static property so consumers can write `<Button.Icon>…</Button.Icon>`.
-(Button as unknown as { Icon: typeof ButtonIcon }).Icon = ButtonIcon;
+const ButtonImpl = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = "primary",
+    size = "md",
+    iconOnly = false,
+    loading = false,
+    icon,
+    iconTrailing,
+    iconLeading,
+    className,
+    children,
+    disabled,
+    type = "button",
+    ...rest
+  },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type={type}
+      disabled={disabled || loading}
+      className={cn(
+        "inline-flex items-center justify-center rounded-full font-medium whitespace-nowrap",
+        "transition-all duration-fast ease-out active:scale-[0.97]",
+        "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+        "focus-visible:outline-none",
+        labelSize[size],
+        variantClasses[variant],
+        iconOnly ? iconOnlyClasses[size] : sizeClasses[size],
+        className,
+      )}
+      {...rest}
+    >
+      {loading ? (
+        <span
+          aria-hidden
+          className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
+        />
+      ) : null}
+      {iconLeading ? (
+        <span aria-hidden className="inline-flex shrink-0">
+          {iconLeading}
+        </span>
+      ) : icon ? (
+        <Icon
+          name={icon}
+          size={size === "lg" ? 20 : 16}
+          strokeWidth={1.75}
+          aria-hidden
+        />
+      ) : null}
+      {children ? <span className="leading-none">{children}</span> : null}
+      {iconTrailing ? (
+        <Icon
+          name={iconTrailing}
+          size={size === "lg" ? 20 : 16}
+          strokeWidth={1.75}
+          aria-hidden
+        />
+      ) : null}
+    </button>
+  );
+});
+ButtonImpl.displayName = "Button";
+
+/**
+ * The exported `Button` is the forwardRef component augmented with the
+ * `.Icon` static subcomponent. Consumers can write `<Button>` and
+ * `<Button.Icon>` interchangeably.
+ */
+export interface ButtonComponent {
+  (props: ButtonProps & { ref?: React.Ref<HTMLButtonElement> }): React.JSX.Element;
+  displayName?: string;
+  Icon: typeof ButtonIcon;
+}
+
+export const Button = ButtonImpl as unknown as ButtonComponent;
+Button.displayName = "Button";
+Button.Icon = ButtonIcon;

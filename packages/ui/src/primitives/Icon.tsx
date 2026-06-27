@@ -17,10 +17,27 @@ import * as React from "react";
 import { cn } from "../cn";
 import * as Lucide from "lucide-react";
 
-export type IconName = keyof typeof Lucide;
+/**
+ * Lucide names are PascalCase (`ArrowUpRight`) but the design-system
+ * canonical spellings are kebab-case (`arrow-up-right`). We accept
+ * either form and resolve via a one-time lookup table.
+ */
+function resolveIconName(name: string): keyof typeof Lucide | null {
+  if (name in Lucide) return name as keyof typeof Lucide;
+  // kebab-case → PascalCase: "arrow-up-right" → "ArrowUpRight".
+  const pascal = name
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+  if (pascal in Lucide) return pascal as keyof typeof Lucide;
+  return null;
+}
+
+export type IconName = keyof typeof Lucide | string;
 
 export interface IconProps extends Omit<React.SVGAttributes<SVGSVGElement>, "name"> {
-  /** Lucide icon name, e.g. `"play"`, `"pause"`, `"arrow-up-right"`. */
+  /** Lucide icon name, e.g. `"play"` (PascalCase) or `"arrow-up-right"` (kebab-case). */
   name: IconName;
   /** Pixel size for width + height. */
   size?: 16 | 20 | 24;
@@ -35,7 +52,15 @@ export const Icon = React.forwardRef<SVGSVGElement, IconProps>(function Icon(
   { name, size = 20, strokeWidth = 1.75, className, "aria-label": ariaLabel, ...rest },
   ref,
 ) {
-  const Component = Lucide[name] as React.ComponentType<{
+  const resolved = resolveIconName(String(name));
+  if (!resolved) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(`[Icon] Unknown Lucide icon: ${String(name)}`);
+    }
+    return null;
+  }
+  const Component = Lucide[resolved] as React.ComponentType<{
     size?: number;
     strokeWidth?: number;
     "aria-hidden"?: boolean | "true" | "false";
@@ -44,13 +69,6 @@ export const Icon = React.forwardRef<SVGSVGElement, IconProps>(function Icon(
     className?: string;
     ref?: React.Ref<SVGSVGElement>;
   }>;
-  if (!Component) {
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
-      console.warn(`[Icon] Unknown Lucide icon: ${String(name)}`);
-    }
-    return null;
-  }
   const isDecorative = !ariaLabel;
   return (
     <Component

@@ -121,7 +121,7 @@ export function StreakRing({
       </svg>
       <span
         className={cn(
-          "absolute bottom-1 left-1/2 -translate-x-1/2 tabular font-mono text-sm font-semibold",
+          "absolute bottom-1 left-1/2 -translate-x-1/2 tabular-nums font-mono text-sm font-semibold",
           atRiskGlow ? "text-warning" : "text-ink",
         )}
       >

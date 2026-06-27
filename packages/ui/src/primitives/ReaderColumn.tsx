@@ -119,10 +119,14 @@ export function scrollCurrentSentenceIntoView({
   // Upper-third anchor: compute the scroll offset that lands the
   // element at ~33% of the viewport. Falls back to a center scroll
   // for very small viewports.
-  const viewportHeight =
-    container instanceof Window ? window.innerHeight : (container as HTMLElement).clientHeight;
-  const targetTop =
-    el.getBoundingClientRect().top + (container instanceof Window ? window.scrollY : (container as HTMLElement).scrollTop);
+  const isWindow = container === null || typeof window !== "undefined" && container === window;
+  const viewportHeight = isWindow
+    ? (window.innerHeight || document.documentElement.clientHeight || 0)
+    : (container as HTMLElement).clientHeight;
+  const scrollY = isWindow
+    ? (window.scrollY ?? document.documentElement.scrollTop ?? 0)
+    : (container as HTMLElement).scrollTop;
+  const targetTop = el.getBoundingClientRect().top + scrollY;
   const offset = upperThird ? Math.max(0, viewportHeight / 3) : Math.max(0, viewportHeight / 2);
   const top = Math.max(0, targetTop - offset);
 

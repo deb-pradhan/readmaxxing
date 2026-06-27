@@ -63,11 +63,13 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
   const menuId = React.useId();
 
   // Reset active index when the menu opens or the item list changes.
+  // Also focus the active item so keyboard nav has a known starting point.
   React.useEffect(() => {
     if (open) {
       const firstEnabled = items.findIndex((it) => !it.disabled);
       setActiveIndex(firstEnabled === -1 ? 0 : firstEnabled);
     }
+    return undefined;
   }, [open, items]);
 
   // Close on click outside / Escape. While open, capture keyboard
@@ -92,6 +94,13 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     const target = buttons[idx];
     if (target) target.focus();
   }, []);
+
+  // Focus the active item once it has rendered, on open or when active changes.
+  React.useEffect(() => {
+    if (!open) return;
+    // Defer one tick so the <ul> has rendered its <button>s.
+    queueMicrotask(() => focusItem(activeIndex));
+  }, [open, activeIndex, focusItem]);
 
   const moveActive = React.useCallback(
     (delta: number) => {

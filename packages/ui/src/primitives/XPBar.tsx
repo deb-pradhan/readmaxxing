@@ -106,13 +106,13 @@ function DailyRing({
             transform="rotate(-90 32 32)"
           />
         </svg>
-        <span className="absolute tabular font-mono text-sm font-semibold">
+        <span className="absolute tabular-nums font-mono text-sm font-semibold">
           {Math.round(pct * 100)}%
         </span>
       </div>
       <div className="min-w-0">
         <p className="text-sm font-medium">Today&apos;s goal</p>
-        <p className="tabular font-mono text-xs text-ink-muted">
+        <p className="tabular-nums font-mono text-xs text-ink-muted">
           {todayXp.toLocaleString()} / {dailyGoalXp.toLocaleString()} XP
         </p>
         {pct >= 1 ? (
@@ -140,7 +140,7 @@ function LevelBar({
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
         <span className="font-medium">Level {level}</span>
-        <span className="tabular font-mono text-ink-muted">
+        <span className="tabular-nums font-mono text-ink-muted">
           {totalXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP
         </span>
       </div>
