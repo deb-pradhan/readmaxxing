@@ -1,17 +1,28 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { themeCssVars, themes, initialThemeFromCookie } from "@readmaxxing/ui";
 import { Providers } from "./providers";
 import "./globals.css";
 
-// Per DESIGN-SYSTEM.md §4.1:
-// - Inter is the only type family. No Source Serif, no Atkinson.
+// Per DESIGN-SYSTEM.md §4.1 + §25.2:
+// - Inter is the UI / display family (sans). No Source Serif, no Atkinson.
+// - Geist Mono (v2) is the instrument-grade mono for numerals / timecodes /
+//   counts. next/font/google doesn't ship Geist Mono, so we load the
+//   closest match (JetBrains Mono) under `--font-mono-loaded` and the
+//   font stack falls through to JetBrains Mono / ui-monospace via
+//   `--font-mono` in globals.css.
 // - Tabular figures globally on body (handled in globals.css).
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-sans-loaded",
+});
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono-loaded",
 });
 
 export const metadata: Metadata = {
@@ -45,7 +56,7 @@ export default async function RootLayout({
       lang="en"
       data-theme={themeName}
       style={themeVars as React.CSSProperties}
-      className={inter.variable}
+      className={`${inter.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-canvas text-ink antialiased">
