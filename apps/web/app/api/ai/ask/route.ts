@@ -11,7 +11,12 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { buildAskPrompt, validateCitations, type AiMessage } from "@readmaxxing/ai";
+import {
+  buildAskPrompt,
+  renderCitations,
+  validateCitations,
+  type AiMessage,
+} from "@readmaxxing/ai";
 import { recordUsage, loadDocument } from "@/lib/ai/document-loader";
 import { dispatchAiStream } from "@/lib/ai/worker-bridge";
 import { log, newRequestId, readUserId, userIdHash } from "@/lib/observability";
@@ -107,7 +112,13 @@ export async function POST(request: NextRequest): Promise<Response> {
           });
           enqueue({
             done: true,
-            citations: validation.anchors,
+            citations: renderCitations(fullText).citations,
+            // Audit C4 (Phase C): ship the precomputed prose field so the
+            // client can tokenize `[cite:p:s]` into CitationPills instead of
+            // ever seeing raw model output. The streaming deltas accumulate
+            // to `fullText`; the terminal frame ships the same string under
+            // `prose` so non-streaming + streaming clients share one contract.
+            prose: renderCitations(fullText).prose,
             model: process.env["OPENROUTER_DEFAULT_MODEL"] ?? "openai/gpt-4o-mini",
           });
           void recordUsage({
@@ -171,7 +182,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
     return NextResponse.json({
       answer: fullText,
-      citations: validation.anchors,
+      // Audit C4 (Phase C): ship the precomputed prose field. The client uses
+      // `prose` for rendering and tokenizes `[cite:p:s]` into CitationPills.
+      prose: renderCitations(fullText).prose,
+      citations: renderCitations(fullText).citations,
       model: process.env["OPENROUTER_DEFAULT_MODEL"] ?? "openai/gpt-4o-mini",
     });
   } catch (err) {
