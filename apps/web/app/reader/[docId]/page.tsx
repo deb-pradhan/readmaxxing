@@ -9,8 +9,8 @@
  *   - Body 15px, line-height 1.5.
  *   - Coral sentence tint + coral word fill for karaoke.
  *   - Fixed bottom player bar.
- *   - The light-mode canvas is the M-Chef neutral #ECEFE6 (see
- *     DESIGN-SYSTEM §3 tokens).
+ *   - The light-mode canvas is the M-Chef warm-paper neutral (see
+ *     DESIGN-SYSTEM §3 tokens + §25.1).
  */
 
 import * as React from "react";

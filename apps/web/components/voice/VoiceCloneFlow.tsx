@@ -228,7 +228,7 @@ export function VoiceCloneFlow({
       ) : null}
 
       {step === "error" && error ? (
-        <div role="alert" className="rounded-md border border-danger bg-[#FBE9E7] p-3 text-sm text-danger">
+        <div role="alert" className="rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger">
           {error}
           <div className="mt-2">
             <Button type="button" variant="secondary" size="md" onClick={() => setStep("name")}>

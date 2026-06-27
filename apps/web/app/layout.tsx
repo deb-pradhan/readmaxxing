@@ -5,6 +5,12 @@ import { themeCssVars, themes, initialThemeFromCookie } from "@readmaxxing/ui";
 import { Providers } from "./providers";
 import "./globals.css";
 
+// Theme colors are read from the canonical theme tokens at build time so
+// the browser-chrome theme-color meta tag tracks the design system — no
+// hard-coded hex literals live in the layout (Phase D P1 token fidelity).
+const LIGHT_THEME_COLOR = themes.light.surfaceCanvas;
+const DARK_THEME_COLOR = themes.dark.surfaceCanvas;
+
 // Per DESIGN-SYSTEM.md §4.1 + §25.2:
 // - Inter is the UI / display family (sans). No Source Serif, no Atkinson.
 // - Geist Mono (v2) is the instrument-grade mono for numerals / timecodes /
@@ -37,8 +43,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ECEFE6" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E0F12" },
+    { media: "(prefers-color-scheme: light)", color: LIGHT_THEME_COLOR },
+    { media: "(prefers-color-scheme: dark)", color: DARK_THEME_COLOR },
   ],
 };
 
